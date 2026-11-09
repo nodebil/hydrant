@@ -1,8 +1,8 @@
 import axios from "axios";
-import { BrowserWindow } from "electron";
-import { setTimeout as sleep } from "node:timers/promises";
 import { logger } from "@main/services";
 import { isMultipartHosterDownloadsEnabled } from "../download/multipart-hoster-feature";
+import { HiddenBrowserSession } from "../source-fetch/browser-session";
+import { SourceFetchError } from "../source-fetch/errors";
 
 export const HOSTER_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0";
@@ -69,29 +69,8 @@ export function handleHosterError(error: unknown): never {
 // ============================================
 const FUCKINGFAST_PARTITION = "persist:hydra-fuckingfast";
 const PAGE_TIMEOUT_MS = 45_000;
-const PAGE_POLL_INTERVAL_MS = 500;
-const WINDOW_IDLE_CLOSE_MS = 60_000;
 
-type PageState = "ready" | "pending" | "not-found" | "rate-limited";
-
-/** Settles with `fallback` once `deadline` passes, without leaving a timer behind. */
-const withDeadline = async <T>(
-  promise: Promise<T>,
-  deadline: number,
-  fallback: T
-): Promise<T> => {
-  const timer = new AbortController();
-  try {
-    return await Promise.race([
-      promise,
-      sleep(Math.max(0, deadline - Date.now()), fallback, {
-        signal: timer.signal,
-      }),
-    ]);
-  } finally {
-    timer.abort();
-  }
-};
+type PageState = "ready" | "not-found" | "rate-limited";
 
 // Matching the button's file ID keeps a slow navigation from reading the previous page.
 const readPageState = (goPath: string) => `(() => {
@@ -99,7 +78,7 @@ const readPageState = (goPath: string) => `(() => {
   const text = document.body ? document.body.innerText : "";
   if (text.includes("File Not Found Or Deleted")) return "not-found";
   if (/rate limit/i.test(text)) return "rate-limited";
-  return "pending";
+  return null;
 })()`;
 
 // The download button posts here; the response names the file link in HX-Redirect.
@@ -121,8 +100,6 @@ export class FuckingFastApi {
     "fuckingfast.net",
   ];
 
-  private static window: BrowserWindow | null = null;
-  private static idleCloseTimer: NodeJS.Timeout | null = null;
   private static pending: Promise<unknown> = Promise.resolve();
 
   private static isSupportedHost(url: string): boolean {
@@ -139,88 +116,38 @@ export class FuckingFastApi {
     }
   }
 
-  private static getWindow(): BrowserWindow {
-    if (this.window && !this.window.isDestroyed()) return this.window;
-
-    const window = new BrowserWindow({
-      show: false,
-      webPreferences: {
-        partition: FUCKINGFAST_PARTITION,
-        sandbox: true,
-        nodeIntegration: false,
-        contextIsolation: true,
-      },
-    });
-    window.webContents.setAudioMuted(true);
-    window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-    this.window = window;
-    return window;
-  }
-
-  private static closeWindow() {
-    if (this.idleCloseTimer) clearTimeout(this.idleCloseTimer);
-    this.idleCloseTimer = null;
-    if (this.window && !this.window.isDestroyed()) this.window.destroy();
-    this.window = null;
-  }
-
   private static getGoPath(url: string): string {
     const fileId = new URL(url).pathname.split("/").find(Boolean);
     if (!fileId) throw new Error("Invalid FuckingFast URL");
     return `/f/${encodeURIComponent(fileId)}/go`;
   }
 
-  private static async waitForPage(
-    window: BrowserWindow,
-    goPath: string,
-    deadline: number
-  ): Promise<PageState> {
-    while (Date.now() < deadline) {
-      const state = await withDeadline<PageState>(
-        window.webContents.executeJavaScript(readPageState(goPath)),
-        deadline,
-        "pending"
-      ).catch((): PageState => "pending");
-      if (state !== "pending") return state;
-      await sleep(PAGE_POLL_INTERVAL_MS);
-    }
-    return "pending";
-  }
-
   private static async resolveDirectLink(url: string): Promise<string> {
     const goPath = this.getGoPath(url);
-    if (this.idleCloseTimer) clearTimeout(this.idleCloseTimer);
-    const window = this.getWindow();
-    const deadline = Date.now() + PAGE_TIMEOUT_MS;
-    let failed = true;
+    const session = await HiddenBrowserSession.open({
+      partition: FUCKINGFAST_PARTITION,
+      timeoutMs: PAGE_TIMEOUT_MS,
+      allowedHosts: this.FUCKINGFAST_DOMAINS,
+    });
 
     try {
       logger.log(`[FuckingFast] Starting download link extraction for: ${url}`);
-      await withDeadline(
-        window.loadURL(url.split("#")[0]).catch(() => undefined),
-        deadline,
-        undefined
-      );
+      await session.navigate(url.split("#")[0]);
 
-      const state = await this.waitForPage(window, goPath, deadline);
+      const state = await session.waitForFunction<PageState>(
+        readPageState(goPath)
+      );
       if (state === "not-found") throw new Error("File not found or deleted");
       if (state === "rate-limited") {
         throw new Error(
           "Rate limit exceeded. Please wait a few minutes and try again."
         );
       }
-      if (state === "pending") {
-        throw new Error("The FuckingFast page did not finish loading.");
-      }
 
-      const response = await withDeadline<{
+      const response = await session.evaluate<{
         status: number;
         redirect: string | null;
-      } | null>(
-        window.webContents.executeJavaScript(requestDownloadLink(goPath)),
-        deadline,
-        null
-      );
+      } | null>(requestDownloadLink(goPath));
       if (!response) {
         throw new Error("FuckingFast did not return a download link in time.");
       }
@@ -236,22 +163,23 @@ export class FuckingFastApi {
         );
       }
 
-      failed = false;
       logger.log(`[FuckingFast] Successfully extracted direct link`);
       return redirect;
     } catch (error) {
       logger.error(`[FuckingFast] Error:`, error);
+      if (error instanceof SourceFetchError) {
+        if (error.code === "BLOCKED") {
+          throw new Error(
+            "FuckingFast is behind a Cloudflare challenge. Try again later."
+          );
+        }
+        if (error.code === "TIMEOUT") {
+          throw new Error("The FuckingFast page did not finish loading.");
+        }
+      }
       throw error;
     } finally {
-      // A failed page may hold a stale challenge; start fresh next time.
-      if (failed) {
-        this.closeWindow();
-      } else {
-        this.idleCloseTimer = setTimeout(
-          () => this.closeWindow(),
-          WINDOW_IDLE_CLOSE_MS
-        );
-      }
+      session.close();
     }
   }
 
@@ -311,7 +239,7 @@ export class FuckingFastApi {
         `Unsupported domain. Supported domains: ${this.FUCKINGFAST_DOMAINS.join(", ")}`
       );
     }
-    // One hidden window serves every link, so requests run one at a time.
+    // One hidden window per link; run them one at a time to bound Electron windows.
     const result = this.pending.then(() => this.resolveDirectLink(url));
     this.pending = result.catch(() => undefined);
     return result;
