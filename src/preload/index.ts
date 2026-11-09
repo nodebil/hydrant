@@ -113,9 +113,17 @@ import type {
   LocalScreenshotDraft,
   LocalScreenshotUploadOptions,
   ScreenshotUploadProgress,
+  SourceProviderStatusEvent,
+  SourceSearchRequest,
+  SourceSearchResult,
 } from "@types";
 import type { AuthPage, Downloader } from "@shared";
 import { NATIVE_WINDOW_DECORATIONS_ARGUMENT } from "../shared/window-layout";
+import {
+  SOURCE_PROVIDER_CANCEL_CHANNEL,
+  SOURCE_PROVIDER_SEARCH_CHANNEL,
+  SOURCE_PROVIDER_STATUS_CHANNEL,
+} from "../shared/source-providers";
 import type { AxiosProgressEvent } from "axios";
 
 const fileExplorerApi = {
@@ -516,6 +524,23 @@ contextBridge.exposeInMainWorld("electron", {
     ipcRenderer.invoke("getDebridFiles", magnet, provider) as Promise<
       { ok: true; data: TorrentFilesResponse } | { ok: false; error: string }
     >,
+
+  /* Source providers */
+  searchSourceProviders: (
+    request: SourceSearchRequest
+  ): Promise<SourceSearchResult[]> =>
+    ipcRenderer.invoke(SOURCE_PROVIDER_SEARCH_CHANNEL, request),
+  cancelSourceProviderSearch: (requestId: string): Promise<void> =>
+    ipcRenderer.invoke(SOURCE_PROVIDER_CANCEL_CHANNEL, requestId),
+  onSourceProviderStatus: (cb: (status: SourceProviderStatusEvent) => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      status: SourceProviderStatusEvent
+    ) => cb(status);
+    ipcRenderer.on(SOURCE_PROVIDER_STATUS_CHANNEL, listener);
+    return () =>
+      ipcRenderer.removeListener(SOURCE_PROVIDER_STATUS_CHANNEL, listener);
+  },
 
   /* Catalogue */
   getGameShopDetails: (

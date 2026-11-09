@@ -144,6 +144,9 @@ import type {
   ResolveEpicCloudSaveConflictPayload,
   EpicLaunchOptions,
   EpicLinuxCompatibility,
+  SourceProviderStatusEvent,
+  SourceSearchRequest,
+  SourceSearchResult,
 } from "@types";
 import type { AxiosProgressEvent } from "axios";
 
@@ -368,6 +371,15 @@ declare global {
     ) => Promise<
       { ok: true; data: TorrentFilesResponse } | { ok: false; error: string }
     >;
+
+    /* Source providers */
+    searchSourceProviders: (
+      request: SourceSearchRequest
+    ) => Promise<SourceSearchResult[]>;
+    cancelSourceProviderSearch: (requestId: string) => Promise<void>;
+    onSourceProviderStatus: (
+      cb: (status: SourceProviderStatusEvent) => void
+    ) => () => Electron.IpcRenderer;
 
     /* Catalogue */
     getGameShopDetails: (
