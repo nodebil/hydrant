@@ -27,3 +27,16 @@ export class SourceFetchError extends Error {
 
 export const isSourceFetchError = (error: unknown): error is SourceFetchError =>
   error instanceof SourceFetchError;
+
+type UnsupportedSourceErrorCode = Extract<
+  SourceErrorCode,
+  "UNSUPPORTED_PROVIDER" | "UNSUPPORTED_HOSTER"
+>;
+
+/** Thrown when a provider id or hoster URL has no registered implementation. */
+export class UnsupportedSourceError extends SourceFetchError {
+  constructor(code: UnsupportedSourceErrorCode, message: string) {
+    super(code, message);
+    this.name = "UnsupportedSourceError";
+  }
+}
