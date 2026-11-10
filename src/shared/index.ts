@@ -31,6 +31,7 @@ import { AchievementNotificationInfo, GameRepack } from "@types";
 export * from "./archive-org";
 export * from "./source-providers";
 export * from "./source-matching";
+export * from "./source-repack";
 export * from "./official-chat";
 export * from "./constants";
 export {
