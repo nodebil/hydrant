@@ -21,6 +21,8 @@ const fetchFeatures = async (): Promise<string[]> => {
 };
 
 export const isSourceProviderSearchEnabled = async (): Promise<boolean> => {
+  if (import.meta.env.DEV) return true;
+
   if (
     cachedFeatures &&
     performance.now() - cachedFeatures.fetchedAt < FEATURE_CACHE_TTL_MS
