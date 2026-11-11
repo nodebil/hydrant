@@ -20,11 +20,6 @@ const fetchFeatures = async (): Promise<string[]> => {
     : [];
 };
 
-/**
- * Authoritative gate for provider search. A failed request disables the
- * feature without caching, so the next search retries; a malformed response
- * caches an empty list and stays off (fail-closed).
- */
 export const isSourceProviderSearchEnabled = async (): Promise<boolean> => {
   if (
     cachedFeatures &&

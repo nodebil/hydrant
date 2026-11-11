@@ -60,10 +60,6 @@ const uniqueLinks = (links: ProviderLink[]): ProviderLink[] => {
   return [...byUrl.values()];
 };
 
-/**
- * Mirrors all describe the same download, so a size is usable only when every
- * link reports it and they agree.
- */
 const getLinkSize = (links: ProviderLink[]): string | null => {
   if (links.length === 0) return null;
 
@@ -80,7 +76,6 @@ const getLinkSize = (links: ProviderLink[]): string | null => {
   return sizes.size === 1 ? [...sizes.values()][0] : null;
 };
 
-/** Maps one provider hit and its scraped links onto Hydra's GameRepack shape. */
 export const toSyntheticRepack = (
   provider: Pick<ProviderDefinition, "id" | "name">,
   hit: ProviderSearchHit,

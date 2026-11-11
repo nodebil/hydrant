@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { describe, it } from "node:test";
 import type { ProviderDefinition, SourceProviderId } from "@types";
-import { UnsupportedSourceError } from "../source-fetch/errors.ts";
-import { getProvider, listProviders, registerProvider } from "./registry.ts";
+import { UnsupportedSourceError } from "../source-fetch/errors.js";
+import { getProvider, listProviders, registerProvider } from "./registry.js";
 
 const makeProvider = (
   id: SourceProviderId,
@@ -18,39 +18,41 @@ const makeProvider = (
   scrape: async () => [],
 });
 
-test("registers providers and rejects duplicate ids", () => {
-  const provider = makeProvider("registry-dup-test", 1);
+describe("provider registry", () => {
+  it("registers providers and rejects duplicate ids", () => {
+    const provider = makeProvider("registry-dup-test", 1);
 
-  registerProvider(provider);
+    registerProvider(provider);
 
-  assert.equal(getProvider("registry-dup-test"), provider);
-  assert.throws(
-    () => registerProvider(makeProvider("registry-dup-test", 2)),
-    /already registered/
-  );
-});
+    assert.equal(getProvider("registry-dup-test"), provider);
+    assert.throws(
+      () => registerProvider(makeProvider("registry-dup-test", 2)),
+      /already registered/
+    );
+  });
 
-test("throws UnsupportedSourceError for unknown provider ids", () => {
-  assert.throws(
-    () => getProvider("registry-missing-provider"),
-    (error: unknown) =>
-      error instanceof UnsupportedSourceError &&
-      error.code === "UNSUPPORTED_PROVIDER"
-  );
-});
+  it("throws UnsupportedSourceError for unknown provider ids", () => {
+    assert.throws(
+      () => getProvider("registry-missing-provider"),
+      (error: unknown) =>
+        error instanceof UnsupportedSourceError &&
+        error.code === "UNSUPPORTED_PROVIDER"
+    );
+  });
 
-test("lists providers by priority then id", () => {
-  registerProvider(makeProvider("registry-order-b", 20));
-  registerProvider(makeProvider("registry-order-a", 20));
-  registerProvider(makeProvider("registry-order-c", 10));
+  it("lists providers by priority then id", () => {
+    registerProvider(makeProvider("registry-order-b", 20));
+    registerProvider(makeProvider("registry-order-a", 20));
+    registerProvider(makeProvider("registry-order-c", 10));
 
-  const ids = listProviders()
-    .map((provider) => provider.id)
-    .filter((id) => id.startsWith("registry-order-"));
+    const ids = listProviders()
+      .map((provider) => provider.id)
+      .filter((id) => id.startsWith("registry-order-"));
 
-  assert.deepEqual(ids, [
-    "registry-order-c",
-    "registry-order-a",
-    "registry-order-b",
-  ]);
+    assert.deepEqual(ids, [
+      "registry-order-c",
+      "registry-order-a",
+      "registry-order-b",
+    ]);
+  });
 });

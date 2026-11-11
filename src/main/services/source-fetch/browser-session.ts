@@ -14,9 +14,7 @@ export interface HiddenBrowserSessionOptions {
   partition: string;
   timeoutMs?: number;
   pollIntervalMs?: number;
-  /** Hostnames the page may navigate or redirect to. */
   allowedHosts?: string[];
-  /** Test seam; defaults to a real Electron BrowserWindow. */
   windowFactory?: BrowserWindowFactory;
 }
 
@@ -65,7 +63,6 @@ const closedError = () =>
 
 const TIMEOUT = Symbol("timeout");
 
-/** Settles with a timeout error once `timeoutMs` passes, without leaving a timer behind. */
 const withDeadline = async <T>(
   promise: Promise<T>,
   timeoutMs: number,
@@ -77,8 +74,7 @@ const withDeadline = async <T>(
   try {
     const result = await Promise.race<unknown>([
       promise.catch((error) => {
-        // Stopping the page on timeout also rejects the pending call; the
-        // timeout must win so callers can tell TIMEOUT from NETWORK.
+        // The timeout must win when stopping the page rejects the pending call.
         if (timedOut) return TIMEOUT;
         throw error;
       }),
@@ -108,10 +104,6 @@ const createBrowserWindow = async (
   return new BrowserWindow(options);
 };
 
-/**
- * One hidden, sandboxed page per operation. Cookies persist through the
- * partition; the window itself is always destroyed by the caller's `finally`.
- */
 export class HiddenBrowserSession {
   private readonly deadline: number;
   private readonly pollIntervalMs: number;
@@ -203,7 +195,6 @@ export class HiddenBrowserSession {
     await this.waitForFunction<boolean>(selectorProbe(selector));
   }
 
-  /** Polls a static page script until it returns a truthy value. */
   async waitForFunction<T>(script: string): Promise<T> {
     if (!script.trim()) {
       throw new SourceFetchError(
@@ -237,7 +228,6 @@ export class HiddenBrowserSession {
     throw timeoutError();
   }
 
-  /** Runs a static page script once and returns its result. */
   async evaluate<T>(script: string): Promise<T> {
     this.throwIfClosed();
     return this.executeWithTimeout<T>(script, this.remainingMs());

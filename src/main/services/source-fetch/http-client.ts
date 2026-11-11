@@ -48,7 +48,6 @@ interface HostWaiter {
   reject: (error: Error) => void;
 }
 
-/** Keeps concurrent requests to one provider host below a fixed limit. */
 class HostLimiter {
   private readonly active = new Map<string, number>();
   private readonly queues = new Map<string, HostWaiter[]>();

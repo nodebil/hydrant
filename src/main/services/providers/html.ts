@@ -5,11 +5,9 @@ type HtmlRoot = Document | Element;
 const normalizeWhitespace = (value: string) =>
   value.replace(/\s+/g, " ").trim();
 
-/** Parses untrusted provider markup without executing scripts or loading resources. */
 export const parseHtml = (html: string, url?: string): Document =>
   new JSDOM(html, url ? { url } : undefined).window.document;
 
-/** Collapsed text of the first match, or `undefined` when the selector misses. */
 export const text = (root: HtmlRoot, selector: string): string | undefined => {
   const element = root.querySelector(selector);
   if (!element) return undefined;
@@ -18,7 +16,6 @@ export const text = (root: HtmlRoot, selector: string): string | undefined => {
   return value || undefined;
 };
 
-/** Trimmed attribute of the first match, or `undefined` when it is missing. */
 export const attr = (
   root: HtmlRoot,
   selector: string,
@@ -28,7 +25,6 @@ export const attr = (
   return value || undefined;
 };
 
-/** Resolves a link against the page URL and keeps only http(s) URLs. */
 export const absoluteUrl = (
   value: string | null | undefined,
   baseUrl: string
@@ -45,7 +41,6 @@ export const absoluteUrl = (
   }
 };
 
-/** Removes a trailing `- Site`, `| Site`, or `» Site` suffix from a title. */
 export const stripSiteSuffix = (title: string, siteName: string): string => {
   const normalized = normalizeWhitespace(title);
   const escapedSiteName = siteName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -59,7 +54,6 @@ const BUILD_PATTERNS = [
   /\bv(\d+(?:\.\d+)+)\b/i,
 ];
 
-/** Extracts the identifier from `Build 25827938`, `Build-23850278`, or `v1.17.2`. */
 export const extractBuild = (
   value: string | null | undefined
 ): string | undefined => {
@@ -75,7 +69,6 @@ export const extractBuild = (
 
 const SIZE_PATTERN = /\b(\d+(?:[.,]\d+)?)\s*(KB|MB|GB|TB|PB|B)\b/i;
 
-/** Normalizes `69.1GB` to `69.1 GB`; `parseBytes` accepts the result. */
 export const extractSize = (
   value: string | null | undefined
 ): string | undefined => {

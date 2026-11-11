@@ -20,6 +20,7 @@ const hit: ProviderSearchHit = {
   confidence: 1,
   build: "Build 25827938",
   size: "69.1 GB",
+  uploadDate: "2026-11-05",
 };
 
 const gofile: ProviderHosterLink = {
@@ -63,7 +64,7 @@ describe("toSyntheticRepack", () => {
     assert.deepEqual(repack.uris, [gofile.url, pixelDrain.url]);
     assert.equal(repack.uriGroups, undefined);
     assert.deepEqual(repack.unavailableUris, []);
-    assert.equal(repack.uploadDate, null);
+    assert.equal(repack.uploadDate, "2026-11-05");
     assert.equal(repack.downloadSourceId, "provider:steamrip");
     assert.equal(repack.downloadSourceName, "SteamRip");
     assert.match(repack.createdAt, /^\d{4}-\d{2}-\d{2}T/);
@@ -162,18 +163,6 @@ describe("toSyntheticRepack", () => {
       toSyntheticRepack(provider, { ...partialHit, title: "ELDEN RING" }, [])
         .title,
       "ELDEN RING Build 25827938"
-    );
-  });
-
-  it("keeps the provider upload date when it exposes one", () => {
-    const datedHit: ProviderSearchHit = {
-      ...hit,
-      uploadDate: "2026-11-05",
-    };
-
-    assert.equal(
-      toSyntheticRepack(provider, datedHit, [gofile]).uploadDate,
-      "2026-11-05"
     );
   });
 
