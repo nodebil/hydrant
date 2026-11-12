@@ -1,14 +1,24 @@
 import type {
   ProviderDefinition,
+  RankedSourceCandidate,
+  SelectionPolicy,
   SourceErrorCode,
   SourceGameRepack,
   SourceLogger,
+  SourcePreferences,
   SourceProviderStatusEvent,
   SourceSearchRequest,
   SourceSearchResult,
   SourceSearchStatus,
 } from "@types";
+import { DEFAULT_SOURCE_PREFERENCES } from "../../../shared/source-providers.js";
 import { toSyntheticRepack } from "../../../shared/source-repack.js";
+import {
+  rankSourceCandidates,
+  type SourceCandidate,
+} from "../resolvers/ranking.js";
+import { listResolvers } from "../resolvers/registry.js";
+import { manualSelectionPolicy } from "../resolvers/selection-policy.js";
 import {
   SourceFetchError,
   isSourceFetchError,
@@ -26,6 +36,9 @@ export interface SearchProvidersOptions {
   signal: AbortSignal;
   logger: SourceLogger;
   onStatus?: (event: SourceProviderStatusEvent) => void;
+  preferences?: SourcePreferences;
+  policy?: SelectionPolicy;
+  onCandidateSelected?: (candidate: RankedSourceCandidate) => void;
 }
 
 const cancelled = () =>
@@ -57,7 +70,8 @@ const getStatus = (code: SourceErrorCode): SourceSearchStatus => {
 const runProvider = async (
   provider: ProviderDefinition,
   request: SourceSearchRequest,
-  options: SearchProvidersOptions
+  options: SearchProvidersOptions,
+  candidates: SourceCandidate[]
 ): Promise<SourceSearchResult> => {
   const { signal, logger, onStatus } = options;
   const startedAt = performance.now();
@@ -146,7 +160,20 @@ const runProvider = async (
       ensureActive(signal);
 
       const repack = toSyntheticRepack(provider, hit, links);
-      if (repack.uris.length > 0) repacks.push(repack);
+      if (repack.uris.length === 0) continue;
+
+      repacks.push(repack);
+      candidates.push({
+        providerId: provider.id,
+        providerPriority: provider.priority,
+        repack,
+        confidence: hit.confidence,
+        // shortcut: requests carry no target build yet; enable this when a build target exists.
+        buildMatch: false,
+        hosterIds: links.flatMap((link) =>
+          link.hosterId ? [link.hosterId] : []
+        ),
+      });
     }
 
     emit("done", { count: repacks.length });
@@ -179,8 +206,40 @@ export const searchProviders = async (
   const providers = request.providerIds
     ? request.providerIds.map(getProvider)
     : listProviders().filter((provider) => provider.enabledByDefault);
+  const preferences = options.preferences ?? DEFAULT_SOURCE_PREFERENCES;
+  const policy = options.policy ?? manualSelectionPolicy;
 
-  return Promise.all(
-    providers.map((provider) => runProvider(provider, request, options))
+  const runs = await Promise.all(
+    providers.map(async (provider) => {
+      const candidates: SourceCandidate[] = [];
+      const result = await runProvider(provider, request, options, candidates);
+
+      return { result, candidates };
+    })
   );
+
+  const ranked = rankSourceCandidates(
+    runs.flatMap((run) => run.candidates),
+    preferences,
+    Object.fromEntries(
+      listResolvers().map((resolver) => [resolver.id, resolver.priority])
+    )
+  );
+  const rankById = new Map(
+    ranked.map((candidate, index) => [candidate.repack.id, index])
+  );
+
+  const results = runs.map(({ result }) => ({
+    ...result,
+    repacks: [...result.repacks].sort(
+      (a, b) =>
+        (rankById.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (rankById.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+    ),
+  }));
+
+  const selected = policy.select(ranked, preferences);
+  if (selected) options.onCandidateSelected?.(selected);
+
+  return results;
 };

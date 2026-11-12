@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  DEFAULT_SOURCE_PREFERENCES,
   getSourceProviderFeatureFlag,
   SOURCE_PROVIDER_SEARCH_FEATURE,
 } from "./source-providers.js";
@@ -16,5 +17,13 @@ describe("source provider flags", () => {
       getSourceProviderFeatureFlag("steam-rip"),
       "PROVIDER_SEARCH_STEAM_RIP"
     );
+  });
+
+  it("keeps priority preferences empty and autopick off by default", () => {
+    assert.deepEqual(DEFAULT_SOURCE_PREFERENCES, {
+      providerPriority: [],
+      hosterPriority: [],
+      autoPick: false,
+    });
   });
 });

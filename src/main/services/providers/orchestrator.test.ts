@@ -4,6 +4,7 @@ import type {
   ProviderDefinition,
   ProviderLink,
   ProviderSearchHit,
+  RankedSourceCandidate,
   SourceProviderStatusEvent,
   SourceSearchRequest,
 } from "@types";
@@ -275,5 +276,67 @@ describe("source provider orchestrator", () => {
         error instanceof UnsupportedSourceError &&
         error.code === "UNSUPPORTED_PROVIDER"
     );
+  });
+
+  it("keeps selection manual by default", async () => {
+    const provider = makeProvider("orchestrator-manual");
+    registerProvider(provider);
+
+    let selections = 0;
+    await searchProviders(makeRequest([provider.id]), {
+      signal: new AbortController().signal,
+      logger,
+      onCandidateSelected: () => {
+        selections += 1;
+      },
+    });
+
+    assert.equal(selections, 0);
+  });
+
+  it("orders repacks by rank and reports an injected policy selection", async () => {
+    const provider = makeProvider("orchestrator-rank", {
+      async search(request) {
+        return [
+          {
+            ...hit,
+            providerId: "orchestrator-rank",
+            title: request.title,
+            url: "https://provider.test/game/low",
+            confidence: 0.5,
+          },
+          {
+            ...hit,
+            providerId: "orchestrator-rank",
+            title: request.title,
+            url: "https://provider.test/game/high",
+            confidence: 0.99,
+          },
+        ];
+      },
+      async scrape(gameHit) {
+        return [
+          {
+            ...link,
+            url: `https://gofile.io/d/${gameHit.url.split("/").pop()}`,
+          },
+        ];
+      },
+    });
+    registerProvider(provider);
+
+    const selected: RankedSourceCandidate[] = [];
+    const [result] = await searchProviders(makeRequest([provider.id]), {
+      signal: new AbortController().signal,
+      logger,
+      policy: { id: "auto", select: (candidates) => candidates[0] ?? null },
+      onCandidateSelected: (candidate) => selected.push(candidate),
+    });
+
+    assert.equal(result.repacks.length, 2);
+    assert.match(result.repacks[0].uris[0], /high$/);
+    assert.match(result.repacks[1].uris[0], /low$/);
+    assert.equal(selected.length, 1);
+    assert.match(selected[0].repack.uris[0], /high$/);
   });
 });

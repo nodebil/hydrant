@@ -1,4 +1,12 @@
+import type { SourcePreferences } from "@types";
+
 export const SOURCE_PROVIDER_SEARCH_FEATURE = "PROVIDER_SEARCH";
+
+export const DEFAULT_SOURCE_PREFERENCES: SourcePreferences = {
+  providerPriority: [],
+  hosterPriority: [],
+  autoPick: false,
+};
 
 export const SOURCE_PROVIDER_SEARCH_CHANNEL = "searchSourceProviders";
 export const SOURCE_PROVIDER_CANCEL_CHANNEL = "cancelSourceProviderSearch";
