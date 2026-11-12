@@ -116,6 +116,33 @@ describe("source provider orchestrator", () => {
     assert.equal(statuses[2].count, 1);
   });
 
+  it("keeps a repack whose only links are multipart", async () => {
+    const parts = [
+      "https://fuckingfast.co/a#Game.part1.rar",
+      "https://fuckingfast.co/b#Game.part2.rar",
+    ];
+    const provider = makeProvider("orchestrator-multipart", {
+      async scrape() {
+        return [
+          {
+            kind: "hoster",
+            url: parts[0],
+            label: "FuckingFast",
+            hosterId: "fuckingfast",
+            parts,
+          },
+        ];
+      },
+    });
+    registerProvider(provider);
+
+    const [result] = await search(makeRequest([provider.id]));
+
+    assert.equal(result.repacks.length, 1);
+    assert.deepEqual(result.repacks[0].uris, []);
+    assert.deepEqual(result.repacks[0].uriGroups, [parts]);
+  });
+
   it("emits a structured source log with request, host, and technique", async () => {
     const provider = makeProvider("orchestrator-log", {
       requiresBrowser: true,

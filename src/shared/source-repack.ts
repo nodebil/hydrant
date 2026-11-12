@@ -105,13 +105,9 @@ export const toSyntheticRepack = (
     uris.push(trimmed);
   };
 
+  // Multipart parts stay in uriGroups; normalizeUriGroups adds each group's first part.
   for (const link of candidates) {
-    const parts = getMultipartParts(link);
-
-    if (parts) {
-      const group = groups.get(getMultipartKey(parts));
-      if (group) addUri(group[0]);
-    } else if (!groupedUrls.has(link.url.trim())) {
+    if (!getMultipartParts(link) && !groupedUrls.has(link.url.trim())) {
       addUri(link.url);
     }
   }

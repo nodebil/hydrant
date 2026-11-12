@@ -160,7 +160,7 @@ const runProvider = async (
       ensureActive(signal);
 
       const repack = toSyntheticRepack(provider, hit, links);
-      if (repack.uris.length === 0) continue;
+      if (repack.uris.length === 0 && !repack.uriGroups?.length) continue;
 
       repacks.push(repack);
       candidates.push({

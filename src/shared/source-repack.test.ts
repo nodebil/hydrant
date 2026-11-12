@@ -6,6 +6,11 @@ import type {
   ProviderSearchHit,
   SourceProviderId,
 } from "@types";
+import { Downloader } from "./constants.js";
+import {
+  normalizeUriGroups,
+  withoutMultipartHosterDownloads,
+} from "./repack-uri-groups.js";
 import { toSyntheticRepack } from "./source-repack.js";
 
 const provider = {
@@ -54,6 +59,14 @@ const multipart: ProviderHosterLink = {
   parts: fuckingFastParts,
 };
 
+const getDownloadersForUri = (uri: string): Downloader[] => {
+  if (uri.startsWith("https://gofile.io")) return [Downloader.Gofile];
+  if (uri.startsWith("https://pixeldrain.com")) return [Downloader.PixelDrain];
+  if (uri.startsWith("https://fuckingfast.co")) return [Downloader.FuckingFast];
+  if (uri.startsWith("https://1fichier.com")) return [Downloader.RealDebrid];
+  return [];
+};
+
 describe("toSyntheticRepack", () => {
   it("maps mirrors and metadata onto a stable synthetic repack", () => {
     const repack = toSyntheticRepack(provider, hit, [gofile, pixelDrain]);
@@ -73,8 +86,50 @@ describe("toSyntheticRepack", () => {
   it("groups multipart parts as one download option", () => {
     const repack = toSyntheticRepack(provider, hit, [gofile, multipart]);
 
-    assert.deepEqual(repack.uris, [gofile.url, fuckingFastParts[0]]);
+    assert.deepEqual(repack.uris, [gofile.url]);
     assert.deepEqual(repack.uriGroups, [fuckingFastParts]);
+  });
+
+  it("lists single and multipart mirrors as separate options after filtering", () => {
+    const repack = toSyntheticRepack(provider, hit, [gofile, multipart]);
+    const filtered = normalizeUriGroups(repack, getDownloadersForUri);
+
+    assert.deepEqual(filtered.uris, [gofile.url, fuckingFastParts[0]]);
+    assert.deepEqual(filtered.uriGroups, [fuckingFastParts]);
+  });
+
+  it("drops a multipart group instead of keeping its first part when the feature is off", () => {
+    const repack = toSyntheticRepack(provider, hit, [gofile, multipart]);
+    const filtered = withoutMultipartHosterDownloads(repack);
+
+    assert.deepEqual(filtered.uris, [gofile.url]);
+    assert.equal(filtered.uriGroups, undefined);
+  });
+
+  it("keeps a multipart-only repack grouped until the feature is off", () => {
+    const repack = toSyntheticRepack(provider, hit, [multipart]);
+
+    assert.deepEqual(repack.uris, []);
+    assert.deepEqual(repack.uriGroups, [fuckingFastParts]);
+    assert.deepEqual(normalizeUriGroups(repack, getDownloadersForUri).uris, [
+      fuckingFastParts[0],
+    ]);
+    assert.deepEqual(withoutMultipartHosterDownloads(repack).uris, []);
+  });
+
+  it("drops multipart groups without a multipart downloader", () => {
+    const parts = ["https://1fichier.com/?a", "https://1fichier.com/?b"];
+    const repack = toSyntheticRepack(provider, hit, [
+      {
+        kind: "hoster",
+        url: parts[0],
+        label: "1fichier",
+        hosterId: "1fichier",
+        parts,
+      },
+    ]);
+
+    assert.deepEqual(normalizeUriGroups(repack, getDownloadersForUri).uris, []);
   });
 
   it("deduplicates links, repeated parts, and duplicate groups", () => {
@@ -96,7 +151,7 @@ describe("toSyntheticRepack", () => {
       { ...gofile, label: "Gofile mirror" },
     ]);
 
-    assert.deepEqual(repack.uris, [gofile.url, fuckingFastParts[0]]);
+    assert.deepEqual(repack.uris, [gofile.url]);
     assert.deepEqual(repack.uriGroups, [fuckingFastParts]);
   });
 
