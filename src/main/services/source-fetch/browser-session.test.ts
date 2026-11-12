@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
 import type { SourceErrorCode } from "@types";
-import { HiddenBrowserSession } from "./browser-session.js";
+import {
+  assertHiddenBrowserOptions,
+  HiddenBrowserSession,
+} from "./browser-session.js";
 import { SourceFetchError } from "./errors.js";
 
 type Listener = (...args: unknown[]) => void;
@@ -167,6 +170,34 @@ describe("HiddenBrowserSession", () => {
     } finally {
       session.close();
     }
+  });
+
+  it("rejects weakened hidden window security options", () => {
+    const secure = {
+      show: false,
+      webPreferences: {
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        webSecurity: true,
+      },
+    };
+
+    assert.doesNotThrow(() => assertHiddenBrowserOptions(secure));
+    assert.throws(
+      () =>
+        assertHiddenBrowserOptions({
+          ...secure,
+          webPreferences: { ...secure.webPreferences, sandbox: false },
+        }),
+      (error: unknown) =>
+        error instanceof SourceFetchError && error.code === "INVALID_INPUT"
+    );
+    assert.throws(
+      () => assertHiddenBrowserOptions({ ...secure, show: true }),
+      (error: unknown) =>
+        error instanceof SourceFetchError && error.code === "INVALID_INPUT"
+    );
   });
 
   it("allows only allowlisted navigation hosts", async () => {

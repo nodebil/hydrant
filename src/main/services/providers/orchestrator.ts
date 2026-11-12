@@ -14,6 +14,12 @@ import {
   isSourceFetchError,
 } from "../source-fetch/errors.js";
 import { createSourceHttpClient } from "../source-fetch/http-client.js";
+import {
+  getSourceErrorName,
+  logSourceEvent,
+  type SourceTechnique,
+} from "../source-fetch/source-log.js";
+import { parseHttpUrl } from "../source-fetch/url-policy.js";
 import { getProvider, listProviders } from "./registry.js";
 
 export interface SearchProvidersOptions {
@@ -55,6 +61,16 @@ const runProvider = async (
 ): Promise<SourceSearchResult> => {
   const { signal, logger, onStatus } = options;
   const startedAt = performance.now();
+  const host = parseHttpUrl(provider.baseUrl)?.hostname;
+  const technique: SourceTechnique = provider.requiresBrowser
+    ? "browser"
+    : "http";
+  const logBase = {
+    requestId: request.requestId,
+    providerId: provider.id,
+    technique,
+    ...(host ? { host } : {}),
+  };
   const emit = (
     phase: SourceProviderStatusEvent["phase"],
     extra: Pick<SourceProviderStatusEvent, "count" | "errorCode"> = {}
@@ -67,19 +83,46 @@ const runProvider = async (
     });
   };
   const finish = (
-    result: Omit<SourceSearchResult, "providerId" | "durationMs">
-  ): SourceSearchResult => ({
-    providerId: provider.id,
-    ...result,
-    durationMs: Math.round(performance.now() - startedAt),
-  });
+    result: Omit<SourceSearchResult, "providerId" | "durationMs">,
+    error?: unknown
+  ): SourceSearchResult => {
+    const finished = {
+      providerId: provider.id,
+      ...result,
+      durationMs: Math.round(performance.now() - startedAt),
+    };
 
+    logSourceEvent(
+      logger,
+      {
+        event: "provider.search.finish",
+        ...logBase,
+        outcome: finished.status,
+        count: finished.repacks.length,
+        durationMs: finished.durationMs,
+        ...(finished.errorCode ? { errorCode: finished.errorCode } : {}),
+        ...(error ? { errorName: getSourceErrorName(error) } : {}),
+      },
+      finished.errorCode && finished.errorCode !== "CANCELLED" ? "warn" : "info"
+    );
+
+    return finished;
+  };
+
+  logSourceEvent(
+    logger,
+    { event: "provider.search.start", ...logBase },
+    "debug"
+  );
   emit("searching");
 
   try {
     ensureActive(signal);
 
-    const client = createSourceHttpClient({ timeoutMs: provider.timeoutMs });
+    const client = createSourceHttpClient({
+      timeoutMs: provider.timeoutMs,
+      ...(host ? { allowedHosts: [host] } : {}),
+    });
     const context = {
       signal,
       fetch: client.fetch,
@@ -115,21 +158,17 @@ const runProvider = async (
     });
   } catch (error) {
     const errorCode = getErrorCode(error);
-    if (errorCode !== "CANCELLED") {
-      logger.warn(
-        "[SourceProviders] Provider search failed",
-        provider.id,
-        errorCode
-      );
-    }
     emit("error", { errorCode });
 
-    return finish({
-      status: getStatus(errorCode),
-      hits: [],
-      repacks: [],
-      errorCode,
-    });
+    return finish(
+      {
+        status: getStatus(errorCode),
+        hits: [],
+        repacks: [],
+        errorCode,
+      },
+      error
+    );
   }
 };
 

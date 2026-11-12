@@ -115,6 +115,41 @@ describe("source provider orchestrator", () => {
     assert.equal(statuses[2].count, 1);
   });
 
+  it("emits a structured source log with request, host, and technique", async () => {
+    const provider = makeProvider("orchestrator-log", {
+      requiresBrowser: true,
+    });
+    registerProvider(provider);
+
+    const events: unknown[][] = [];
+    const capture = (...params: unknown[]) => {
+      events.push(params);
+    };
+    const captureLogger = {
+      debug: capture,
+      info: capture,
+      warn: capture,
+      error: capture,
+    };
+
+    await searchProviders(makeRequest([provider.id]), {
+      signal: new AbortController().signal,
+      logger: captureLogger,
+    });
+
+    const finish = events
+      .map((params) => params[1] as Record<string, unknown>)
+      .find((event) => event.event === "provider.search.finish");
+
+    assert.ok(finish);
+    assert.equal(finish.requestId, "request-1");
+    assert.equal(finish.providerId, provider.id);
+    assert.equal(finish.host, "provider.test");
+    assert.equal(finish.technique, "browser");
+    assert.equal(finish.outcome, "ok");
+    assert.ok(Number(finish.durationMs) >= 0);
+  });
+
   it("turns the dev stub into a synthetic repack", async () => {
     registerProvider(stubProvider);
 

@@ -117,6 +117,20 @@ describe("network log payload", () => {
     assert.equal(sanitized.downloadUrl, "[REDACTED]");
   });
 
+  it("redacts storage signatures, keys, and signed URL parameters", () => {
+    const sanitized = sanitizeNetworkLogPayload({
+      signature: "signed",
+      apiKey: "api-secret",
+      sourceUrl:
+        "https://cdn.example.com/file?part=1&key=secret&X-Goog-Signature=google-secret&hdntl=cloudfront-secret",
+    }) as Record<string, string>;
+
+    assert.equal(sanitized.signature, "[REDACTED]");
+    assert.equal(sanitized.apiKey, "[REDACTED]");
+    assert.ok(!sanitized.sourceUrl.includes("secret"));
+    assert.match(sanitized.sourceUrl, /part=1/);
+  });
+
   it("redacts duplicate sensitive URL parameters", () => {
     const sanitized = sanitizeNetworkLogPayload({
       sourceUrl: "https://example.com/file?token=first&part=1&token=second",

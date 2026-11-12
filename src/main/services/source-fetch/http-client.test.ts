@@ -303,4 +303,36 @@ describe("createSourceHttpClient", () => {
       "INVALID_INPUT"
     );
   });
+
+  it("rejects hosts outside the allowlist", async () => {
+    const client = createSourceHttpClient({
+      retries: 0,
+      allowedHosts: ["example.com"],
+    });
+
+    await assertRejectsWithCode(client.fetch(`${baseUrl}/ok`), "INVALID_INPUT");
+  });
+
+  it("rejects a redirect that leaves the allowlisted hosts", async () => {
+    const response = new Response("ok", {
+      status: 200,
+      headers: { "content-type": "text/plain" },
+    });
+    Object.defineProperty(response, "url", {
+      value: "https://evil.test/file",
+      enumerable: true,
+      configurable: true,
+    });
+
+    const client = createSourceHttpClient({
+      retries: 0,
+      allowedHosts: ["provider.test"],
+      fetchImpl: async () => response,
+    });
+
+    await assertRejectsWithCode(
+      client.fetch("https://provider.test/page"),
+      "INVALID_INPUT"
+    );
+  });
 });

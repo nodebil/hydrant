@@ -1,5 +1,6 @@
 import { CookieJar } from "tough-cookie";
 import { SourceFetchError } from "./errors.js";
+import { isHostAllowed, parseHttpUrl } from "./url-policy.js";
 
 export const SOURCE_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0";
@@ -34,6 +35,7 @@ export interface SourceHttpClientOptions {
   maxResponseBytes?: number;
   maxConcurrentPerHost?: number;
   allowedContentTypes?: readonly string[];
+  allowedHosts?: readonly string[];
   redirect?: RequestRedirect;
   fetchImpl?: typeof fetch;
 }
@@ -328,6 +330,7 @@ export const createSourceHttpClient = (
     options.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
   const allowedContentTypes =
     options.allowedContentTypes ?? DEFAULT_ALLOWED_CONTENT_TYPES;
+  const allowedHosts = options.allowedHosts ?? [];
   const redirect = options.redirect ?? "follow";
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
   const limiter = new HostLimiter(
@@ -365,6 +368,16 @@ export const createSourceHttpClient = (
       throw new SourceFetchError(
         "INVALID_INPUT",
         "The source URL must use HTTP or HTTPS."
+      );
+    }
+
+    if (
+      allowedHosts.length > 0 &&
+      !isHostAllowed(requestUrl.hostname, allowedHosts)
+    ) {
+      throw new SourceFetchError(
+        "INVALID_INPUT",
+        "The source host is not allowlisted."
       );
     }
 
@@ -412,6 +425,20 @@ export const createSourceHttpClient = (
         await limiter.acquire(host, controller.signal);
         try {
           const response = await fetchImpl(request);
+          // shortcut: fetch follows redirects before this check; use manual redirects if per-hop blocking is required.
+          const finalUrl = parseHttpUrl(response.url);
+          if (
+            allowedHosts.length > 0 &&
+            (!finalUrl || !isHostAllowed(finalUrl.hostname, allowedHosts))
+          ) {
+            await cancelBody(response);
+            throw new SourceFetchError(
+              "INVALID_INPUT",
+              "The source redirect left the allowlisted hosts.",
+              { status: response.status }
+            );
+          }
+
           const setCookies = getSetCookie(response.headers);
           if (setCookies.length > 0) {
             const cookieUrl = response.url || baseRequest.url;

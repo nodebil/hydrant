@@ -1,6 +1,7 @@
 import type { BrowserWindow, BrowserWindowConstructorOptions } from "electron";
 import { setTimeout as sleep } from "node:timers/promises";
 import { SourceFetchError } from "./errors.js";
+import { isSourceUrlAllowed, parseHttpUrl } from "./url-policy.js";
 
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DEFAULT_POLL_INTERVAL_MS = 500;
@@ -37,12 +38,22 @@ const selectorProbe = (selector: string) => `(() => {
   }
 })()`;
 
-const toHttpUrl = (value: string): URL | null => {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:" ? url : null;
-  } catch {
-    return null;
+export const assertHiddenBrowserOptions = (
+  options: BrowserWindowConstructorOptions
+): void => {
+  const preferences = options.webPreferences;
+  const hardened =
+    options.show === false &&
+    preferences?.sandbox === true &&
+    preferences.contextIsolation === true &&
+    preferences.nodeIntegration === false &&
+    preferences.webSecurity === true;
+
+  if (!hardened) {
+    throw new SourceFetchError(
+      "INVALID_INPUT",
+      "The hidden browser window security preferences were not applied."
+    );
   }
 };
 
@@ -134,7 +145,7 @@ export class HiddenBrowserSession {
       );
     }
 
-    const window = await (options.windowFactory ?? createBrowserWindow)({
+    const windowOptions: BrowserWindowConstructorOptions = {
       show: false,
       webPreferences: {
         partition: options.partition,
@@ -144,7 +155,12 @@ export class HiddenBrowserSession {
         webSecurity: true,
         backgroundThrottling: false,
       },
-    });
+    };
+    assertHiddenBrowserOptions(windowOptions);
+
+    const window = await (options.windowFactory ?? createBrowserWindow)(
+      windowOptions
+    );
 
     const session = new HiddenBrowserSession(window, options);
     try {
@@ -159,7 +175,7 @@ export class HiddenBrowserSession {
   async navigate(url: string): Promise<void> {
     this.throwIfClosed();
 
-    const parsed = toHttpUrl(url);
+    const parsed = parseHttpUrl(url);
     if (!parsed) {
       throw new SourceFetchError(
         "INVALID_INPUT",
@@ -311,14 +327,7 @@ export class HiddenBrowserSession {
   };
 
   private isAllowedUrl(value: string): boolean {
-    const url = toHttpUrl(value);
-    if (!url || this.allowedHosts.size === 0) return false;
-
-    const host = url.hostname.toLowerCase();
-    for (const allowed of this.allowedHosts) {
-      if (host === allowed || host.endsWith(`.${allowed}`)) return true;
-    }
-    return false;
+    return isSourceUrlAllowed(value, this.allowedHosts);
   }
 
   private remainingMs(): number {
