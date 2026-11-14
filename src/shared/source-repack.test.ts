@@ -23,7 +23,7 @@ const hit: ProviderSearchHit = {
   title: "ELDEN RING Deluxe Edition",
   url: "https://steamrip.com/elden-ring-de-free-download-1gg/",
   confidence: 1,
-  build: "Build 25827938",
+  build: "25827938",
   size: "69.1 GB",
   uploadDate: "2026-11-05",
 };
@@ -72,7 +72,7 @@ describe("toSyntheticRepack", () => {
     const repack = toSyntheticRepack(provider, hit, [gofile, pixelDrain]);
 
     assert.equal(repack.id, "provider:steamrip:595afaff");
-    assert.equal(repack.title, "ELDEN RING Deluxe Edition Build 25827938");
+    assert.equal(repack.title, "ELDEN RING Deluxe Edition – 25827938");
     assert.equal(repack.fileSize, "69.1 GB");
     assert.deepEqual(repack.uris, [gofile.url, pixelDrain.url]);
     assert.equal(repack.uriGroups, undefined);
@@ -217,7 +217,7 @@ describe("toSyntheticRepack", () => {
     assert.equal(
       toSyntheticRepack(provider, { ...partialHit, title: "ELDEN RING" }, [])
         .title,
-      "ELDEN RING Build 25827938"
+      "ELDEN RING – 25827938"
     );
   });
 

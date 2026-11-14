@@ -86,6 +86,7 @@ const runProvider = async (
     providerId: provider.id,
     technique,
     ...(host ? { host } : {}),
+    details: { title: request.title },
   };
   const emit = (
     phase: SourceProviderStatusEvent["phase"],

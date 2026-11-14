@@ -175,6 +175,7 @@ describe("source provider orchestrator", () => {
     assert.equal(finish.host, "provider.test");
     assert.equal(finish.technique, "browser");
     assert.equal(finish.outcome, "ok");
+    assert.deepEqual(finish.details, { title: "Test Game" });
     assert.ok(Number(finish.durationMs) >= 0);
   });
 

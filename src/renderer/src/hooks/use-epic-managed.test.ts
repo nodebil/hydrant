@@ -745,6 +745,7 @@ describe("Epic managed UI lifecycle", () => {
         },
         "./download-settings-modal": { DownloadSettingsModal: () => null },
         "./epic-install-modal": { EpicInstallModal: () => null },
+        "./source-repacks-section": { SourceRepacksSection: () => null },
         "@renderer/assets/epic-integration-logo.svg?react": () => null,
         "./repacks-modal.scss": {},
         "./repack-availability": loadModule(
@@ -902,6 +903,7 @@ describe("Epic managed UI lifecycle", () => {
         },
         "./download-settings-modal": { DownloadSettingsModal: () => null },
         "./epic-install-modal": { EpicInstallModal: Install },
+        "./source-repacks-section": { SourceRepacksSection: () => null },
         "@renderer/assets/epic-integration-logo.svg?react": () => null,
         "./repacks-modal.scss": {},
         "./repack-availability": loadModule(

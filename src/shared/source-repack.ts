@@ -114,7 +114,7 @@ export const toSyntheticRepack = (
 
   const title =
     hit.build && !hit.title.includes(hit.build)
-      ? `${hit.title} ${hit.build}`
+      ? `${hit.title} – ${hit.build}`
       : hit.title;
 
   const id: SourceRepackId = `provider:${provider.id}:${hashSourceUrl(

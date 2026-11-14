@@ -1,0 +1,114 @@
+@use "../../../scss/globals.scss";
+
+.source-repacks {
+  margin-bottom: calc(globals.$spacing-unit * 2);
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: globals.$spacing-unit;
+    width: 100%;
+    padding: globals.$spacing-unit calc(globals.$spacing-unit * 1.5);
+    background-color: globals.$dark-background-color;
+    border: 1px solid globals.$border-color;
+    border-radius: 6px;
+    color: globals.$muted-color;
+    font-size: globals.$hint-font-size;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease;
+
+    &:hover:not(:disabled) {
+      background-color: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    &:disabled {
+      cursor: default;
+      opacity: globals.$disabled-opacity;
+    }
+  }
+
+  &__toggle-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__toggle-icons {
+    display: flex;
+    align-items: center;
+    gap: globals.$spacing-unit;
+    flex-shrink: 0;
+  }
+
+  &__toggle-icon {
+    color: globals.$subtle-color;
+    flex-shrink: 0;
+  }
+
+  &__collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.2s ease;
+
+    &--open {
+      grid-template-rows: 1fr;
+    }
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: calc(globals.$spacing-unit * 2);
+    min-height: 0;
+    overflow: hidden;
+    padding-top: 0;
+    transition: padding-top 0.2s ease;
+  }
+
+  &__collapse--open &__content {
+    padding-top: calc(globals.$spacing-unit * 2);
+  }
+
+  &__loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(globals.$spacing-unit * 1.5);
+    padding: calc(globals.$spacing-unit * 0.5) 0;
+    color: globals.$subtle-color;
+  }
+
+  &__spinner {
+    animation: source-repacks-spin 1s linear infinite;
+  }
+
+  &__notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(globals.$spacing-unit * 2);
+    flex-wrap: wrap;
+    padding: calc(globals.$spacing-unit * 1.5) calc(globals.$spacing-unit * 2);
+    background-color: globals.$dark-background-color;
+    border: 1px solid globals.$border-color;
+    border-radius: 8px;
+    color: globals.$subtle-color;
+    font-size: globals.$small-font-size;
+
+    &--error {
+      color: globals.$error-color;
+    }
+  }
+}
+
+@keyframes source-repacks-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

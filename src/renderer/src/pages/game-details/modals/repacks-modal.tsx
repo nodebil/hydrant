@@ -47,6 +47,7 @@ import { useEpicManagedConnection } from "@renderer/hooks/use-epic-managed";
 import { useLibrary } from "@renderer/hooks";
 import type { LibraryGame } from "@types";
 import { epicInstallTiming } from "@renderer/helpers/epic-install-timing";
+import { SourceRepacksSection } from "./source-repacks-section";
 
 export interface RepacksModalProps {
   visible: boolean;
@@ -220,6 +221,11 @@ export function RepacksModal({
     setViewedRepackIds((prev) => new Set(prev).add(repack.id));
   };
 
+  const handleSourceRepackClick = (repack: GameRepack) => {
+    setRepack(repack);
+    setShowSelectFolderModal(true);
+  };
+
   const handleFilter: React.ChangeEventHandler<HTMLInputElement> = (event) => {
     setFilterTerm(event.target.value);
   };
@@ -320,6 +326,10 @@ export function RepacksModal({
         description={t("repacks_modal_description")}
         onClose={onClose}
       >
+        {visible && (
+          <SourceRepacksSection onSelectRepack={handleSourceRepackClick} />
+        )}
+
         <div
           className={`repacks-modal__filter-container ${isFilterDrawerOpen ? "repacks-modal__filter-container--drawer-open" : ""}`}
         >
