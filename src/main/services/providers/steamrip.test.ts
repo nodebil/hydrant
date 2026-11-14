@@ -1,8 +1,15 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { Downloader } from "../../../shared/constants.js";
+import { getDownloadersForUris } from "../../../shared/downloader-mapping.js";
+import { toSyntheticRepack } from "../../../shared/source-repack.js";
 import { isSourceFetchError } from "../source-fetch/errors.js";
-import { parseSteamRipGame, parseSteamRipSearch } from "./steamrip.js";
+import {
+  parseSteamRipGame,
+  parseSteamRipSearch,
+  steamripProvider,
+} from "./steamrip.js";
 
 const fixture = (name: string) =>
   readFileSync(new URL(`./__fixtures__/${name}`, import.meta.url), "utf8");
@@ -98,6 +105,29 @@ describe("steamrip provider", () => {
     );
 
     assert.deepEqual(page.links, []);
+  });
+
+  it("hands the Gofile link to the existing downloader mapping", () => {
+    const page = parseSteamRipGame(
+      fixture("steamrip-game.html"),
+      gamePageUrl,
+      1245620
+    );
+    const repack = toSyntheticRepack(
+      steamripProvider,
+      {
+        providerId: "steamrip",
+        title: "Elden Ring Deluxe Edition",
+        url: gamePageUrl,
+        confidence: 1,
+        build: "25827938",
+        size: "69.1 GB",
+      },
+      page.links
+    );
+
+    assert.deepEqual(getDownloadersForUris(repack.uris), [Downloader.Gofile]);
+    assert.equal(repack.uris.includes("https://gofile.io/d/qpvferIa"), true);
   });
 
   it("groups multipart files in part order", () => {
