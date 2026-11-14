@@ -37,25 +37,30 @@ const games = [
   { title: "Dead Space", appId: 1693980, expect: ["buzzheavier"] },
 ];
 
+const repeatedGames = [
+  { title: "Prison Architect", expect: ["gofile"] },
+  { title: "BOXROOM", expect: ["buzzheavier", "fileditch"] },
+];
+
 const logger = { debug() {}, info() {}, warn() {}, error() {} };
 
 const run = async () => {
   const report = [];
 
-  for (const game of games) {
+  const runGame = async (game, requestId) => {
     const request = {
-      requestId: "smoke-" + String(game.appId),
+      requestId,
       shop: "steam",
-      objectId: String(game.appId),
+      objectId: game.appId ? String(game.appId) : "smoke",
       title: game.title,
-      steamAppId: game.appId,
+      ...(game.appId ? { steamAppId: game.appId } : {}),
     };
     const signal = new AbortController().signal;
     const ctx = {
       signal,
       fetch: globalThis.fetch,
       logger,
-      requestId: request.requestId,
+      requestId,
     };
 
     const hits = await steamripProvider.search(request, ctx);
@@ -83,10 +88,21 @@ const run = async () => {
 
     report.push({
       game: game.title,
+      requestId,
       hits: hits.length,
       repacks,
     });
     console.log("SMOKE " + JSON.stringify(report[report.length - 1]));
+  };
+
+  for (const game of games) {
+    await runGame(game, "smoke-" + String(game.appId));
+  }
+
+  for (let pass = 1; pass <= 2; pass += 1) {
+    for (const game of repeatedGames) {
+      await runGame(game, "smoke-repeat-" + pass + "-" + game.title.replaceAll(" ", "-"));
+    }
   }
 
   console.log("RESULT " + JSON.stringify({ steamrip: "passed", report }));

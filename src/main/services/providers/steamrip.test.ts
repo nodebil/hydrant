@@ -1,10 +1,17 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import ts from "typescript";
+import type { ProviderContext, SourceSearchRequest } from "@types";
 import { Downloader } from "../../../shared/constants.js";
 import { getDownloadersForUris } from "../../../shared/downloader-mapping.js";
+import * as matchingModule from "../../../shared/source-matching.js";
 import { toSyntheticRepack } from "../../../shared/source-repack.js";
+import * as errorsModule from "../source-fetch/errors.js";
 import { isSourceFetchError } from "../source-fetch/errors.js";
+import * as urlPolicyModule from "../source-fetch/url-policy.js";
+import * as htmlModule from "./html.js";
 import {
   parseSteamRipGame,
   parseSteamRipSearch,
@@ -19,6 +26,94 @@ const gamePageUrl = "https://steamrip.com/elden-ring-de-free-download-1gg/";
 
 const isParseError = (error: unknown) =>
   isSourceFetchError(error) && error.code === "PARSE";
+
+const isBlockedError = (error: unknown) =>
+  isSourceFetchError(error) && error.code === "BLOCKED";
+
+interface FakeBrowserSession {
+  navigate(url: string): Promise<void>;
+  detectCloudflare(): Promise<boolean>;
+  readHtml(): Promise<string>;
+  close(): void;
+}
+
+const loadProviderWithSession = (
+  open: (options: { partition: string }) => Promise<FakeBrowserSession>
+) => {
+  const { outputText } = ts.transpileModule(
+    readFileSync(new URL("./steamrip.ts", import.meta.url), "utf8"),
+    {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+        esModuleInterop: true,
+      },
+      fileName: "steamrip.ts",
+    }
+  );
+  const stubs: Record<string, unknown> = {
+    "node:crypto": { createHash },
+    "../../../shared/source-matching.js": matchingModule,
+    "../source-fetch/browser-session.js": {
+      HiddenBrowserSession: { open },
+    },
+    "../source-fetch/errors.js": errorsModule,
+    "../source-fetch/url-policy.js": urlPolicyModule,
+    "./html.js": htmlModule,
+  };
+  const exports: Record<string, unknown> = {};
+  new Function("exports", "require", outputText)(exports, (name: string) => {
+    const stub = stubs[name];
+    if (!stub) throw new Error(`Unexpected import: ${name}`);
+    return stub;
+  });
+
+  return exports.steamripProvider as typeof steamripProvider;
+};
+
+const noopLogger = {
+  debug: () => undefined,
+  info: () => undefined,
+  warn: () => undefined,
+  error: () => undefined,
+};
+
+const createStaleSessionFactory = (freshHtml: string) => {
+  const usedPartitions = new Set<string>();
+  const partitions: string[] = [];
+
+  const open = async (options: {
+    partition: string;
+  }): Promise<FakeBrowserSession> => {
+    const stale = usedPartitions.has(options.partition);
+    usedPartitions.add(options.partition);
+    partitions.push(options.partition);
+
+    return {
+      navigate: async () => undefined,
+      detectCloudflare: async () => false,
+      readHtml: async () => (stale ? "" : freshHtml),
+      close: () => undefined,
+    };
+  };
+
+  return { open, partitions };
+};
+
+const searchRequest = (requestId: string): SourceSearchRequest => ({
+  requestId,
+  shop: "steam",
+  objectId: "1245620",
+  title: "ELDEN RING",
+  steamAppId: 1245620,
+});
+
+const providerContext = (requestId: string): ProviderContext => ({
+  signal: new AbortController().signal,
+  fetch: globalThis.fetch,
+  logger: noopLogger,
+  requestId,
+});
 
 describe("steamrip provider", () => {
   it("matches the requested game and rejects sequels", () => {
@@ -172,5 +267,39 @@ describe("steamrip provider", () => {
       () => parseSteamRipGame(fixture("steamrip-game-drift.html"), gamePageUrl),
       isParseError
     );
+  });
+
+  it("classifies empty and challenge pages as BLOCKED", () => {
+    assert.throws(
+      () =>
+        parseSteamRipSearch(
+          fixture("steamrip-blocked.html"),
+          "ELDEN RING",
+          searchPageUrl
+        ),
+      isBlockedError
+    );
+    assert.throws(
+      () => parseSteamRipGame("<html><body></body></html>", gamePageUrl),
+      isBlockedError
+    );
+  });
+
+  it("keeps repeated searches in one process on fresh browser sessions", async () => {
+    const fake = createStaleSessionFactory(fixture("steamrip-search.html"));
+    const provider = loadProviderWithSession(fake.open);
+
+    const first = await provider.search(
+      searchRequest("first-request"),
+      providerContext("first-request")
+    );
+    const second = await provider.search(
+      searchRequest("second-request"),
+      providerContext("second-request")
+    );
+
+    assert.equal(first.length, 1);
+    assert.equal(second.length, 1);
+    assert.notEqual(fake.partitions[0], fake.partitions[1]);
   });
 });

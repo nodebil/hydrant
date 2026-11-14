@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type {
   ProviderContext,
   ProviderDefinition,
@@ -26,8 +27,29 @@ import {
 
 export const STEAMRIP_BASE_URL = "https://steamrip.com";
 
-const PARTITION = "source-steamrip";
+const PARTITION_PREFIX = "source-steamrip";
 const SESSION_TIMEOUT_MS = 45_000;
+
+// A reused browser partition can return an empty page on the next search.
+const getSessionPartition = (requestId: string): string =>
+  `${PARTITION_PREFIX}-${createHash("sha256")
+    .update(requestId)
+    .digest("hex")
+    .slice(0, 16)}`;
+
+const BLOCKED_PAGE_TEXT =
+  /just a moment|checking your browser|verify you are human|attention required|you have been blocked/i;
+
+const assertPageReadable = (document: Document): void => {
+  const bodyText = (document.body?.textContent ?? "").trim();
+
+  if (!bodyText || BLOCKED_PAGE_TEXT.test(`${document.title}\n${bodyText}`)) {
+    throw new SourceFetchError(
+      "BLOCKED",
+      "SteamRip returned an empty or blocked page."
+    );
+  }
+};
 
 const HOSTERS = [
   { hosterId: "gofile", label: "Gofile", hosts: ["gofile.io"] },
@@ -145,6 +167,7 @@ export const parseSteamRipSearch = (
   pageUrl: string
 ): ProviderSearchHit[] => {
   const document = parseHtml(html, pageUrl);
+  assertPageReadable(document);
   const cards = document.querySelectorAll("div.slide");
 
   if (cards.length === 0) {
@@ -202,6 +225,7 @@ export const parseSteamRipGame = (
   expectedSteamAppId?: number
 ): SteamRipGameInfo => {
   const document = parseHtml(html, pageUrl);
+  assertPageReadable(document);
   const title = text(document, "h1.entry-title");
 
   if (!title) return { links: [] };
@@ -255,9 +279,9 @@ export const parseSteamRipGame = (
   return { size, ...(build ? { build } : {}), links: groupParts(links) };
 };
 
-const readPage = async (url: string): Promise<string> => {
+const readPage = async (url: string, requestId: string): Promise<string> => {
   const session = await HiddenBrowserSession.open({
-    partition: PARTITION,
+    partition: getSessionPartition(requestId),
     timeoutMs: SESSION_TIMEOUT_MS,
     allowedHosts: [new URL(STEAMRIP_BASE_URL).hostname],
   });
@@ -298,7 +322,7 @@ export const steamripProvider: ProviderDefinition = {
       STEAMRIP_BASE_URL
     ).toString();
     const hits = parseSteamRipSearch(
-      await readPage(pageUrl),
+      await readPage(pageUrl, ctx.requestId),
       request.title,
       pageUrl
     );
@@ -315,7 +339,7 @@ export const steamripProvider: ProviderDefinition = {
     ctx.signal.throwIfAborted();
 
     const page = parseSteamRipGame(
-      await readPage(hit.url),
+      await readPage(hit.url, ctx.requestId),
       hit.url,
       hit.steamAppId
     );
