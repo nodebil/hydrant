@@ -1,4 +1,7 @@
-import { SOURCE_PROVIDER_SEARCH_FEATURE } from "@shared";
+import {
+  getSourceProviderFeatureFlag,
+  SOURCE_PROVIDER_SEARCH_FEATURE,
+} from "@shared";
 import { HydraApi } from "@main/services/hydra-api";
 import { logger } from "@main/services/logger";
 
@@ -20,22 +23,33 @@ const fetchFeatures = async (): Promise<string[]> => {
     : [];
 };
 
-export const isSourceProviderSearchEnabled = async (): Promise<boolean> => {
+const hasFeature = async (feature: string): Promise<boolean> => {
   if (import.meta.env.DEV) return true;
 
   if (
     cachedFeatures &&
     performance.now() - cachedFeatures.fetchedAt < FEATURE_CACHE_TTL_MS
   ) {
-    return cachedFeatures.values.includes(SOURCE_PROVIDER_SEARCH_FEATURE);
+    return cachedFeatures.values.includes(feature);
   }
 
   try {
     const values = await fetchFeatures();
     cachedFeatures = { values, fetchedAt: performance.now() };
-    return values.includes(SOURCE_PROVIDER_SEARCH_FEATURE);
+    return values.includes(feature);
   } catch (error) {
     logger.warn("[SourceProviders] Could not load feature flags", error);
     return false;
   }
+};
+
+export const isSourceProviderSearchEnabled = (): Promise<boolean> =>
+  hasFeature(SOURCE_PROVIDER_SEARCH_FEATURE);
+
+export const isSourceProviderEnabled = async (
+  providerId: string
+): Promise<boolean> => {
+  if (!(await isSourceProviderSearchEnabled())) return false;
+
+  return hasFeature(getSourceProviderFeatureFlag(providerId));
 };

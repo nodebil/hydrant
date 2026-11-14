@@ -273,6 +273,36 @@ describe("source provider orchestrator", () => {
     );
   });
 
+  it("skips providers whose per-provider flag is off", async () => {
+    let calls = 0;
+    const provider = makeProvider("orchestrator-flag", {
+      async search() {
+        calls += 1;
+        return [hit];
+      },
+    });
+    registerProvider(provider);
+
+    const disabled = await searchProviders(makeRequest([provider.id]), {
+      signal: new AbortController().signal,
+      logger,
+      isProviderEnabled: async (providerId) => providerId !== provider.id,
+    });
+
+    assert.deepEqual(disabled, []);
+    assert.equal(calls, 0);
+
+    const enabled = await searchProviders(makeRequest([provider.id]), {
+      signal: new AbortController().signal,
+      logger,
+      isProviderEnabled: async () => true,
+    });
+
+    assert.equal(enabled[0].providerId, provider.id);
+    assert.equal(enabled[0].status, "ok");
+    assert.equal(calls, 1);
+  });
+
   it("searches only enabled providers unless ids are explicit", async () => {
     let calls = 0;
     const provider = makeProvider("orchestrator-disabled", {

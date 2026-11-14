@@ -6,6 +6,7 @@ import type {
   SourceGameRepack,
   SourceLogger,
   SourcePreferences,
+  SourceProviderId,
   SourceProviderStatusEvent,
   SourceSearchRequest,
   SourceSearchResult,
@@ -35,6 +36,7 @@ import { getProvider, listProviders } from "./registry.js";
 export interface SearchProvidersOptions {
   signal: AbortSignal;
   logger: SourceLogger;
+  isProviderEnabled?: (providerId: SourceProviderId) => Promise<boolean>;
   onStatus?: (event: SourceProviderStatusEvent) => void;
   preferences?: SourcePreferences;
   policy?: SelectionPolicy;
@@ -199,13 +201,30 @@ const runProvider = async (
   }
 };
 
+const filterEnabledProviders = async (
+  providers: ProviderDefinition[],
+  isProviderEnabled?: (providerId: SourceProviderId) => Promise<boolean>
+): Promise<ProviderDefinition[]> => {
+  if (!isProviderEnabled) return providers;
+
+  const flags = await Promise.all(
+    providers.map((provider) => isProviderEnabled(provider.id))
+  );
+
+  return providers.filter((_, index) => flags[index]);
+};
+
 export const searchProviders = async (
   request: SourceSearchRequest,
   options: SearchProvidersOptions
 ): Promise<SourceSearchResult[]> => {
-  const providers = request.providerIds
+  const requestedProviders = request.providerIds
     ? request.providerIds.map(getProvider)
     : listProviders().filter((provider) => provider.enabledByDefault);
+  const providers = await filterEnabledProviders(
+    requestedProviders,
+    options.isProviderEnabled
+  );
   const preferences = options.preferences ?? DEFAULT_SOURCE_PREFERENCES;
   const policy = options.policy ?? manualSelectionPolicy;
 

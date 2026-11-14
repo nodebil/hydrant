@@ -4,7 +4,10 @@ import {
   SOURCE_PROVIDER_STATUS_CHANNEL,
 } from "@shared";
 import { logger } from "@main/services/logger";
-import { isSourceProviderSearchEnabled } from "@main/services/providers/feature-flags";
+import {
+  isSourceProviderEnabled,
+  isSourceProviderSearchEnabled,
+} from "@main/services/providers/feature-flags";
 import { searchProviders } from "@main/services/providers/orchestrator";
 import {
   beginSourceProviderSearch,
@@ -35,6 +38,7 @@ const searchSourceProviders = async (
     return await searchProviders(request, {
       signal: controller.signal,
       logger,
+      isProviderEnabled: isSourceProviderEnabled,
       onStatus: (status) => sendStatus(event, status),
     });
   } finally {
