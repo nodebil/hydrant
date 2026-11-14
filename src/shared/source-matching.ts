@@ -126,6 +126,7 @@ export const isConfidentMatch = (
 const STEAM_APP_ID_PATTERNS = [
   /store\.steampowered\.com\/app\/(\d+)/i,
   /steamcommunity\.com\/app\/(\d+)/i,
+  /steamdb\.info\/app\/(\d+)/i,
   /steam:\/\/rungameid\/(\d+)/i,
   /[?&](?:appid|steamAppId)=(\d+)/i,
 ];

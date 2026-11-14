@@ -8,12 +8,14 @@ const normalizeWhitespace = (value: string) =>
 export const parseHtml = (html: string, url?: string): Document =>
   new JSDOM(html, url ? { url } : undefined).window.document;
 
-export const text = (root: HtmlRoot, selector: string): string | undefined => {
-  const element = root.querySelector(selector);
-  if (!element) return undefined;
-
+export const textOf = (element: Element): string | undefined => {
   const value = normalizeWhitespace(element.textContent ?? "");
   return value || undefined;
+};
+
+export const text = (root: HtmlRoot, selector: string): string | undefined => {
+  const element = root.querySelector(selector);
+  return element ? textOf(element) : undefined;
 };
 
 export const attr = (

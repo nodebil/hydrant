@@ -21,21 +21,21 @@ describe("html helpers", () => {
 
     assert.equal(
       attr(document, "a.all-over-thumb-link", "href"),
-      "/elden-ring-de-free-download-1gg/"
+      "elden-ring-nightreign-free-download/"
     );
     assert.equal(
       absoluteUrl(attr(document, "a.all-over-thumb-link", "href"), pageUrl),
-      "https://steamrip.com/elden-ring-de-free-download-1gg/"
+      "https://steamrip.com/elden-ring-nightreign-free-download/"
     );
     assert.equal(
-      attr(document, "a.all-over-thumb-link", "title"),
-      "Elden Ring Deluxe Edition Free Download"
+      text(document, "h2.thumb-title a"),
+      "ELDEN RING NIGHTREIGN Free Download (v1.03.3 + Co-op)"
     );
 
     const meta = text(document, "h2.the-post-title .game-meta-line");
-    assert.equal(meta, "Elden Ring Deluxe Edition Build 25827938 69.1 GB");
-    assert.equal(extractBuild(meta), "25827938");
-    assert.equal(extractSize(meta), "69.1 GB");
+    assert.equal(meta, "2025 | 26.3 GB");
+    assert.equal(extractSize(meta), "26.3 GB");
+    assert.equal(extractBuild(text(document, "span.tagmetafield")), "22818764");
   });
 
   it("reads the audited SteamRip GAME INFO block and links", () => {
@@ -44,16 +44,21 @@ describe("html helpers", () => {
       "https://steamrip.com/elden-ring-de-free-download-1gg/"
     );
 
-    const build = text(document, ".game-info li:nth-child(1)");
-    const size = text(document, ".game-info li:nth-child(2)");
-    assert.equal(build, "Build: 25827938");
-    assert.equal(size, "Size: 69.1 GB");
-    assert.equal(extractBuild(build), "25827938");
+    assert.equal(
+      text(document, "h1.entry-title"),
+      "Elden Ring Deluxe Edition Free Download (v1.17.2)"
+    );
+
+    const size = text(document, ".plus.tie-list-shortcode li:nth-child(4)");
+    const version = text(document, ".plus.tie-list-shortcode li:nth-child(6)");
+    assert.equal(size, "Game Size: 69.1 GB");
+    assert.equal(version, "Version: Build 25827938");
     assert.equal(extractSize(size), "69.1 GB");
+    assert.equal(extractBuild(version), "25827938");
 
     assert.equal(
       absoluteUrl(
-        attr(document, ".download-links a", "href"),
+        attr(document, "a.shortc-button", "href"),
         "https://steamrip.com/elden-ring-de-free-download-1gg/"
       ),
       "https://gofile.io/d/qpvferIa"

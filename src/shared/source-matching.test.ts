@@ -97,6 +97,10 @@ describe("source matching", () => {
       extractSteamAppId("https://steamcommunity.com/app/1245620"),
       1245620
     );
+    assert.equal(
+      extractSteamAppId("https://steamdb.info/app/1245620/patchnotes/"),
+      1245620
+    );
     assert.equal(extractSteamAppId("steam://rungameid/1245620"), 1245620);
     assert.equal(
       extractSteamAppId("https://example.com/?appid=1245620"),
