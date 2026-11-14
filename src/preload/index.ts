@@ -1253,6 +1253,10 @@ contextBridge.exposeInMainWorld("electron", {
     collectionIds: string[]
   ) =>
     ipcRenderer.invoke("assignGameToCollection", shop, objectId, collectionIds),
+  setCollectionGameOrder: (
+    collectionId: string,
+    games: { shop: GameShop; objectId: string }[]
+  ) => ipcRenderer.invoke("setCollectionGameOrder", collectionId, games),
   setGameVisibility: (
     shop: GameShop,
     objectId: string,

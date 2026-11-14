@@ -530,6 +530,10 @@ declare global {
       objectId: string,
       collectionIds: string[]
     ) => Promise<void>;
+    setCollectionGameOrder: (
+      collectionId: string,
+      games: { shop: GameShop; objectId: string }[]
+    ) => Promise<void>;
     clearNewDownloadOptions: (
       shop: GameShop,
       objectId: string
