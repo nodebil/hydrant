@@ -7,15 +7,27 @@ import {
 } from "./downloader-mapping.js";
 
 describe("downloader mapping", () => {
-  it("maps the v1 hoster and leaves unimplemented hosters unmapped", () => {
+  it("maps implemented hosters and leaves unimplemented hosters unmapped", () => {
     assert.deepEqual(getDownloadersForUri("https://gofile.io/d/qpvferIa"), [
       Downloader.Gofile,
     ]);
-    assert.deepEqual(getDownloadersForUri("https://bzzhr.to/kgze9ln1colu"), []);
+    assert.deepEqual(getDownloadersForUri("https://bzzhr.to/kgze9ln1colu"), [
+      Downloader.Buzzheavier,
+    ]);
     assert.deepEqual(
       getDownloadersForUri("https://itsfileditchfiles.st/a/b/file.rar"),
       []
     );
+  });
+
+  it("maps every Buzzheavier domain", () => {
+    for (const uri of [
+      "https://buzzheavier.com/abc",
+      "https://bzzhr.to/abc",
+      "https://bzzhr.co/abc",
+    ]) {
+      assert.deepEqual(getDownloadersForUri(uri), [Downloader.Buzzheavier]);
+    }
   });
 
   it("keeps the existing native hoster mappings", () => {

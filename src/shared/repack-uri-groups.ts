@@ -10,6 +10,7 @@ export const MULTIPART_DOWNLOADERS: ReadonlySet<Downloader> = new Set([
   Downloader.VikingFile,
   Downloader.Rootz,
   Downloader.FileKeeper,
+  Downloader.Buzzheavier,
 ]);
 
 export const MULTIPART_HOSTER_DOWNLOADS_FEATURE = "MULTIPART_HOSTER_DOWNLOADS";

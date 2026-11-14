@@ -202,7 +202,7 @@ describe("steamrip provider", () => {
     assert.deepEqual(page.links, []);
   });
 
-  it("hands the Gofile link to the existing downloader mapping", () => {
+  it("hands supported SteamRip links to the downloader mapping", () => {
     const page = parseSteamRipGame(
       fixture("steamrip-game.html"),
       gamePageUrl,
@@ -221,7 +221,10 @@ describe("steamrip provider", () => {
       page.links
     );
 
-    assert.deepEqual(getDownloadersForUris(repack.uris), [Downloader.Gofile]);
+    assert.deepEqual(getDownloadersForUris(repack.uris), [
+      Downloader.Gofile,
+      Downloader.Buzzheavier,
+    ]);
     assert.equal(repack.uris.includes("https://gofile.io/d/qpvferIa"), true);
   });
 

@@ -28,6 +28,13 @@ export const getDownloadersForUri = (uri: string) => {
   if (uri.startsWith("https://filekeeper.net/")) {
     return [Downloader.FileKeeper];
   }
+  if (
+    uri.startsWith("https://buzzheavier.com") ||
+    uri.startsWith("https://bzzhr.to") ||
+    uri.startsWith("https://bzzhr.co")
+  ) {
+    return [Downloader.Buzzheavier];
+  }
   if (isArchiveOrgFileUri(uri)) {
     return [Downloader.ArchiveOrg];
   }

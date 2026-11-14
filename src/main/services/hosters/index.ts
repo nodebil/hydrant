@@ -6,3 +6,4 @@ export * from "./fuckingfast";
 export * from "./vikingfile";
 export * from "./rootz";
 export * from "./filekeeper";
+export * from "./buzzheavier";
