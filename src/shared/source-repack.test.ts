@@ -72,7 +72,8 @@ describe("toSyntheticRepack", () => {
     const repack = toSyntheticRepack(provider, hit, [gofile, pixelDrain]);
 
     assert.equal(repack.id, "provider:steamrip:595afaff");
-    assert.equal(repack.title, "ELDEN RING Deluxe Edition – 25827938");
+    assert.equal(repack.title, "ELDEN RING Deluxe Edition");
+    assert.equal(repack.build, "25827938");
     assert.equal(repack.fileSize, "69.1 GB");
     assert.deepEqual(repack.uris, [gofile.url, pixelDrain.url]);
     assert.equal(repack.uriGroups, undefined);
@@ -204,20 +205,22 @@ describe("toSyntheticRepack", () => {
     );
   });
 
-  it("appends the build only when the title does not already contain it", () => {
-    const partialHit: ProviderSearchHit = {
-      ...hit,
-      title: "ELDEN RING Deluxe Edition Build 25827938",
-    };
-
+  it("keeps the provider title unchanged when a build is present", () => {
     assert.equal(
-      toSyntheticRepack(provider, partialHit, []).title,
-      "ELDEN RING Deluxe Edition Build 25827938"
+      toSyntheticRepack(provider, hit, []).title,
+      "ELDEN RING Deluxe Edition"
     );
     assert.equal(
-      toSyntheticRepack(provider, { ...partialHit, title: "ELDEN RING" }, [])
-        .title,
-      "ELDEN RING – 25827938"
+      toSyntheticRepack(
+        provider,
+        { ...hit, title: "Prison Architect Free Download (v11056)" },
+        []
+      ).title,
+      "Prison Architect Free Download (v11056)"
+    );
+    assert.equal(
+      toSyntheticRepack(provider, { ...hit, build: undefined }, []).build,
+      undefined
     );
   });
 

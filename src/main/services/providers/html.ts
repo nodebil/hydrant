@@ -53,7 +53,7 @@ export const stripSiteSuffix = (title: string, siteName: string): string => {
 
 const BUILD_PATTERNS = [
   /\b(?:build|version)\s*[-_:]?\s*(\d[\d.]*)\b/i,
-  /\bv(\d+(?:\.\d+)+)\b/i,
+  /\b(v\d+(?:\.\d+)*)\b/i,
 ];
 
 export const extractBuild = (

@@ -105,7 +105,8 @@ describe("html helpers", () => {
     assert.equal(extractBuild("Build 25827938"), "25827938");
     assert.equal(extractBuild("Build-23850278"), "23850278");
     assert.equal(extractBuild("Version: 1.0.3"), "1.0.3");
-    assert.equal(extractBuild("v1.17.2"), "1.17.2");
+    assert.equal(extractBuild("v1.17.2"), "v1.17.2");
+    assert.equal(extractBuild("v11056"), "v11056");
     assert.equal(extractBuild("Elden Ring"), undefined);
     assert.equal(extractBuild(""), undefined);
     assert.equal(extractBuild(null), undefined);

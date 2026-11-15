@@ -278,9 +278,14 @@ export function SourceRepacksSection({
               {sourceRepacks.map((repack, index) => {
                 const availabilityStatus = getRepackAvailabilityStatus(repack);
                 const tooltipId = `source-availability-orb-${index}`;
+                const build =
+                  repack.build && !repack.title.includes(repack.build)
+                    ? repack.build
+                    : null;
                 const info = [
                   repack.fileSize,
                   repack.downloadSourceName,
+                  build,
                   repack.uploadDate ? formatDate(repack.uploadDate) : null,
                 ]
                   .filter((value): value is string => Boolean(value))

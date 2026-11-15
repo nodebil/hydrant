@@ -153,6 +153,7 @@ export type SourceDownloadSourceId = `provider:${string}`;
 export interface SourceGameRepack extends GameRepack {
   id: SourceRepackId;
   downloadSourceId: SourceDownloadSourceId;
+  build?: string;
 }
 
 export interface SourceSearchResult {

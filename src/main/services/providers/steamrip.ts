@@ -193,8 +193,9 @@ export const parseSteamRipSearch = (
     seen.add(url);
     parsed += 1;
 
-    const title = cleanTitle(cardTitle);
-    if (!isConfidentMatch(requestedTitle, title)) continue;
+    const title = cardTitle;
+    const matchTitle = cleanTitle(cardTitle);
+    if (!isConfidentMatch(requestedTitle, matchTitle)) continue;
 
     const build = extractBuild(text(card, "span.tagmetafield"));
     const size = extractSize(text(card, "span.game-meta-line"));
@@ -203,7 +204,7 @@ export const parseSteamRipSearch = (
       providerId: "steamrip",
       title,
       url,
-      confidence: scoreTitleMatch(requestedTitle, title),
+      confidence: scoreTitleMatch(requestedTitle, matchTitle),
       ...(build ? { build } : {}),
       ...(size ? { size } : {}),
     });

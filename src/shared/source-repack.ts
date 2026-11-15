@@ -112,10 +112,7 @@ export const toSyntheticRepack = (
     }
   }
 
-  const title =
-    hit.build && !hit.title.includes(hit.build)
-      ? `${hit.title} – ${hit.build}`
-      : hit.title;
+  const title = hit.title;
 
   const id: SourceRepackId = `provider:${provider.id}:${hashSourceUrl(
     hit.url.trim()
@@ -133,5 +130,6 @@ export const toSyntheticRepack = (
     downloadSourceId,
     downloadSourceName: provider.name,
     createdAt: new Date().toISOString(),
+    ...(hit.build ? { build: hit.build } : {}),
   };
 };

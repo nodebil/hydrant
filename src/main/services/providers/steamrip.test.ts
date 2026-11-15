@@ -122,7 +122,10 @@ describe("steamrip provider", () => {
     const hits = parseSteamRipSearch(html, "ELDEN RING", searchPageUrl);
 
     assert.equal(hits.length, 1);
-    assert.equal(hits[0].title, "Elden Ring Deluxe Edition");
+    assert.equal(
+      hits[0].title,
+      "Elden Ring Deluxe Edition Free Download (v1.17.2)"
+    );
     assert.equal(
       hits[0].url,
       "https://steamrip.com/elden-ring-de-free-download-1gg/"
