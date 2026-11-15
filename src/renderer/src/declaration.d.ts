@@ -149,6 +149,7 @@ import type {
   EpicLaunchOptions,
   EpicLinuxCompatibility,
   SourceProviderStatusEvent,
+  SourceProviderId,
   SourceSearchRequest,
   SourceSearchResult,
 } from "@types";
@@ -377,6 +378,7 @@ declare global {
     >;
 
     /* Source providers */
+    getSourceProviderAvailability: () => Promise<SourceProviderId[]>;
     searchSourceProviders: (
       request: SourceSearchRequest
     ) => Promise<SourceSearchResult[]>;

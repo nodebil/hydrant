@@ -4,10 +4,7 @@ import {
   SOURCE_PROVIDER_STATUS_CHANNEL,
 } from "@shared";
 import { logger } from "@main/services/logger";
-import {
-  isSourceProviderEnabled,
-  isSourceProviderSearchEnabled,
-} from "@main/services/providers/feature-flags";
+import { isProviderAvailable } from "@main/services/providers/availability";
 import { searchProviders } from "@main/services/providers/orchestrator";
 import {
   beginSourceProviderSearch,
@@ -33,12 +30,10 @@ const searchSourceProviders = async (
   const controller = beginSourceProviderSearch(request.requestId);
 
   try {
-    if (!(await isSourceProviderSearchEnabled())) return [];
-
     return await searchProviders(request, {
       signal: controller.signal,
       logger,
-      isProviderEnabled: isSourceProviderEnabled,
+      isProviderEnabled: isProviderAvailable,
       onStatus: (status) => sendStatus(event, status),
     });
   } finally {

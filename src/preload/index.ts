@@ -116,12 +116,14 @@ import type {
   LocalScreenshotUploadOptions,
   ScreenshotUploadProgress,
   SourceProviderStatusEvent,
+  SourceProviderId,
   SourceSearchRequest,
   SourceSearchResult,
 } from "@types";
 import type { AuthPage, Downloader } from "@shared";
 import { NATIVE_WINDOW_DECORATIONS_ARGUMENT } from "../shared/window-layout";
 import {
+  SOURCE_PROVIDER_AVAILABILITY_CHANNEL,
   SOURCE_PROVIDER_CANCEL_CHANNEL,
   SOURCE_PROVIDER_SEARCH_CHANNEL,
   SOURCE_PROVIDER_STATUS_CHANNEL,
@@ -528,6 +530,8 @@ contextBridge.exposeInMainWorld("electron", {
     >,
 
   /* Source providers */
+  getSourceProviderAvailability: (): Promise<SourceProviderId[]> =>
+    ipcRenderer.invoke(SOURCE_PROVIDER_AVAILABILITY_CHANNEL),
   searchSourceProviders: (
     request: SourceSearchRequest
   ): Promise<SourceSearchResult[]> =>

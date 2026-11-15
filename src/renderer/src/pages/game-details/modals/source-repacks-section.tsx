@@ -14,11 +14,17 @@ import {
 } from "@primer/octicons-react";
 import { Tooltip } from "react-tooltip";
 import { filterDownloadableRepacks } from "@shared";
-import type { GameRepack, SourceGameRepack, SourceSearchResult } from "@types";
+import type {
+  GameRepack,
+  SourceGameRepack,
+  SourceProviderId,
+  SourceSearchResult,
+} from "@types";
 
 import { Button } from "@renderer/components";
 import { gameDetailsContext } from "@renderer/context";
 import { useDate, useFeature } from "@renderer/hooks";
+import { logger } from "@renderer/logger";
 
 import { getRepackAvailabilityStatus } from "./repack-availability";
 import { getSourceSearchOutcome } from "./source-repacks-state";
@@ -45,6 +51,9 @@ export function SourceRepacksSection({
   const { game, gameTitle, objectId, shop } = useContext(gameDetailsContext);
 
   const [sourceRepacks, setSourceRepacks] = useState<SourceGameRepack[]>([]);
+  const [availableProviderIds, setAvailableProviderIds] = useState<
+    SourceProviderId[] | null
+  >(null);
   const [searchPhase, setSearchPhase] = useState<SourceSearchPhase>("idle");
   const [isSearching, setIsSearching] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -73,16 +82,23 @@ export function SourceRepacksSection({
   }, [isExpanded]);
 
   useEffect(() => {
+    window.electron
+      .getSourceProviderAvailability()
+      .then(setAvailableProviderIds)
+      .catch((error) => {
+        logger.error(error);
+        setAvailableProviderIds([]);
+      });
+  }, []);
+
+  useEffect(() => {
     if (!isSearching && refocusToggleRef.current) {
       refocusToggleRef.current = false;
       toggleButtonRef.current?.focus();
     }
   }, [isSearching]);
 
-  // The main process bypasses the flag in dev; mirror it so the section is testable.
-  if (!import.meta.env.DEV && !isFeatureEnabled(Feature.ProviderSearch)) {
-    return null;
-  }
+  if (!availableProviderIds?.length) return null;
 
   const multipartHosterDownloads = isFeatureEnabled(
     Feature.MultipartHosterDownloads
