@@ -79,14 +79,22 @@ class FakeWebContents extends FakeEmitter {
 class FakeWindow {
   readonly webContents = new FakeWebContents();
   readonly loadedUrls: string[] = [];
+  readonly loadOptions: Array<{ httpReferrer?: string } | undefined> = [];
   destroyed = false;
-  loadURLImpl: (url: string) => Promise<void> = async () => undefined;
+  loadURLImpl: (
+    url: string,
+    options?: { httpReferrer?: string }
+  ) => Promise<void> = async () => undefined;
 
   constructor(readonly options: BrowserWindowConstructorOptions) {}
 
-  async loadURL(url: string): Promise<void> {
+  async loadURL(
+    url: string,
+    options?: { httpReferrer?: string }
+  ): Promise<void> {
     this.loadedUrls.push(url);
-    return this.loadURLImpl(url);
+    this.loadOptions.push(options);
+    return this.loadURLImpl(url, options);
   }
 
   isDestroyed(): boolean {
@@ -259,6 +267,39 @@ describe("HiddenBrowserSession", () => {
         false
       );
       assert.equal(frameRedirect.defaultPrevented, false);
+    } finally {
+      session.close();
+    }
+  });
+
+  it("sends an optional referer and records a blocked main-frame redirect", async () => {
+    const { session, window } = await openSession({
+      allowedHosts: ["buzzheavier.com"],
+    });
+
+    try {
+      await session.navigate(
+        "https://buzzheavier.com/file",
+        "https://steamrip.com"
+      );
+      assert.deepEqual(window.loadOptions[0], {
+        httpReferrer: "https://steamrip.com",
+      });
+
+      const foreignRedirect = fakeEvent();
+      window.webContents.emit(
+        "will-redirect",
+        foreignRedirect,
+        "https://steamrip.com/",
+        false,
+        true
+      );
+      assert.equal(foreignRedirect.defaultPrevented, true);
+      assert.equal(session.lastBlockedRedirect, "https://steamrip.com/");
+
+      await session.navigate("https://buzzheavier.com/file");
+      assert.equal(session.lastBlockedRedirect, null);
+      assert.equal(window.loadOptions[1], undefined);
     } finally {
       session.close();
     }

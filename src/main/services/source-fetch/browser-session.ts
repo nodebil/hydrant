@@ -121,6 +121,7 @@ export class HiddenBrowserSession {
   private readonly pollIntervalMs: number;
   private readonly allowedHosts: Set<string>;
   private closed = false;
+  private blockedRedirectUrl: string | null = null;
 
   private constructor(
     private readonly window: BrowserWindow,
@@ -177,8 +178,13 @@ export class HiddenBrowserSession {
     }
   }
 
-  async navigate(url: string): Promise<void> {
+  get lastBlockedRedirect(): string | null {
+    return this.blockedRedirectUrl;
+  }
+
+  async navigate(url: string, referer?: string): Promise<void> {
     this.throwIfClosed();
+    this.blockedRedirectUrl = null;
 
     const parsed = parseHttpUrl(url);
     if (!parsed) {
@@ -192,7 +198,9 @@ export class HiddenBrowserSession {
 
     try {
       await withDeadline(
-        this.window.loadURL(parsed.href).then(() => undefined),
+        this.window
+          .loadURL(parsed.href, referer ? { httpReferrer: referer } : undefined)
+          .then(() => undefined),
         this.remainingMs(),
         () => this.stopLoading()
       );
@@ -320,7 +328,10 @@ export class HiddenBrowserSession {
     _isInPlace: boolean,
     isMainFrame: boolean
   ): void => {
-    if (isMainFrame && !this.isAllowedUrl(url)) event.preventDefault();
+    if (isMainFrame && !this.isAllowedUrl(url)) {
+      this.blockedRedirectUrl = url;
+      event.preventDefault();
+    }
   };
 
   private readonly onWillAttachWebview = (event: Electron.Event): void => {

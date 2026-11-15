@@ -21,7 +21,8 @@ interface FakeSessionOptions {
 }
 
 interface FakeSession {
-  navigate(url: string): Promise<void>;
+  readonly lastBlockedRedirect: string | null;
+  navigate(url: string, referer?: string): Promise<void>;
   waitForFunction<T>(_script: string): Promise<T>;
   readHtml(): Promise<string>;
   evaluate<T>(_script: string): Promise<T>;
@@ -33,6 +34,7 @@ interface FakeSessionState {
   closed: number;
   evaluated: string[];
   navigated: string[];
+  referers: Array<string | undefined>;
 }
 
 const noopLogger = {
@@ -65,6 +67,7 @@ const loadHoster = (
     closed: 0,
     evaluated: [],
     navigated: [],
+    referers: [],
   };
   const stubs: Record<string, unknown> = {
     "../../../shared/constants.js": { DownloadError },
@@ -111,8 +114,10 @@ const createSession = (
   ): Promise<FakeSession> => {
     state.opened.push(options);
     return {
-      navigate: async (url) => {
+      lastBlockedRedirect: null,
+      navigate: async (url, referer) => {
         state.navigated.push(url);
+        state.referers.push(referer);
       },
       waitForFunction: async <T>() => true as T,
       readHtml: async () => html,
@@ -191,6 +196,7 @@ describe("buzzheavier hoster", () => {
       "bzzhr.co",
     ]);
     assert.deepEqual(hoster.state.navigated, [pageUrl]);
+    assert.deepEqual(hoster.state.referers, [undefined]);
     assert.match(hoster.state.evaluated[0], /"HX-Request": "true"/);
     assert.match(hoster.state.evaluated[0], /\/redacted123\/download\?t=/);
     assert.equal(hoster.state.closed, 1);
@@ -230,10 +236,48 @@ describe("buzzheavier hoster", () => {
     );
   });
 
+  it("retries with the uploader referer after a blocked redirect", async () => {
+    const hoster = loadHoster(async (options, state) => {
+      state.opened.push(options);
+      let attempts = 0;
+      const session = {
+        lastBlockedRedirect: null as string | null,
+        navigate: async (url: string, referer?: string) => {
+          state.navigated.push(url);
+          state.referers.push(referer);
+          attempts += 1;
+
+          if (attempts === 1) {
+            session.lastBlockedRedirect = "https://steamrip.com/";
+            throw new SourceFetchError("NETWORK", "The redirect was blocked.");
+          }
+        },
+        waitForFunction: async <T>() => true as T,
+        readHtml: async () => fixture("buzzheavier-file.html"),
+        evaluate: async <T>() => ({ status: 204, redirect: directUrl }) as T,
+        close: () => {
+          state.closed += 1;
+        },
+      };
+      return session;
+    });
+
+    const url = await hoster.api.getDownloadUrl(pageUrl);
+
+    assert.equal(url, directUrl);
+    assert.deepEqual(hoster.state.navigated, [pageUrl, pageUrl]);
+    assert.deepEqual(hoster.state.referers, [
+      undefined,
+      "https://steamrip.com",
+    ]);
+    assert.equal(hoster.state.closed, 1);
+  });
+
   it("turns a blocked navigation into an unavailable error", async () => {
     const hoster = loadHoster(async (options, state) => {
       state.opened.push(options);
       return {
+        lastBlockedRedirect: null,
         navigate: async () => {
           throw new SourceFetchError("NETWORK", "The redirect was blocked.");
         },

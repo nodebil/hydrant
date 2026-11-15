@@ -26,6 +26,35 @@ const requestDirectLink = (path: string) => `(async () => {
 
 const unavailableError = () => new Error(DownloadError.HosterUnlockUnavailable);
 
+const getBlockedRedirectReferer = (
+  session: HiddenBrowserSession
+): string | null => {
+  if (!session.lastBlockedRedirect) return null;
+
+  try {
+    const { protocol, origin } = new URL(session.lastBlockedRedirect);
+    return protocol === "https:" ? origin : null;
+  } catch {
+    return null;
+  }
+};
+
+const navigateToPage = async (
+  session: HiddenBrowserSession,
+  url: string
+): Promise<void> => {
+  try {
+    await session.navigate(url);
+  } catch (error) {
+    // Referer-protected files answer 303 to the site that posted them.
+    const referer = getBlockedRedirectReferer(session);
+    if (!referer) throw error;
+
+    logger.log(`[Buzzheavier] Retrying with the uploader referer: ${referer}`);
+    await session.navigate(url, referer);
+  }
+};
+
 export interface BuzzheavierPage {
   downloadPath?: string;
   notFound: boolean;
@@ -72,7 +101,7 @@ const resolveDirectLink = async (url: string): Promise<string> => {
     logger.log(`[Buzzheavier] Starting download link extraction for: ${url}`);
 
     try {
-      await session.navigate(url.split("#")[0]);
+      await navigateToPage(session, url.split("#")[0]);
       await session.waitForFunction<boolean>(pageReadyScript);
     } catch (error) {
       logger.error("[Buzzheavier] Page did not become readable:", error);
