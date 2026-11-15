@@ -40,6 +40,7 @@ class FakeSession extends FakeEmitter {}
 class FakeWebContents extends FakeEmitter {
   readonly session = new FakeSession();
   audioMuted = false;
+  userAgent = "";
   windowOpenHandler: ((details: { url: string }) => { action: string }) | null =
     null;
   stopped = false;
@@ -53,6 +54,10 @@ class FakeWebContents extends FakeEmitter {
 
   setAudioMuted(muted: boolean): void {
     this.audioMuted = muted;
+  }
+
+  setUserAgent(userAgent: string): void {
+    this.userAgent = userAgent;
   }
 
   setWindowOpenHandler(
@@ -106,6 +111,7 @@ const fakeEvent = () => {
 
 const openSession = async (
   options: Partial<{
+    userAgent: string;
     timeoutMs: number;
     pollIntervalMs: number;
     allowedHosts: string[];
@@ -143,6 +149,7 @@ describe("HiddenBrowserSession", () => {
   it("opens a hidden, sandboxed window and denies unsafe actions", async () => {
     const { session, window } = await openSession({
       allowedHosts: ["fuckingfast.co"],
+      userAgent: "hydra-test-agent",
     });
 
     try {
@@ -156,6 +163,7 @@ describe("HiddenBrowserSession", () => {
         backgroundThrottling: false,
       });
       assert.equal(window.webContents.audioMuted, true);
+      assert.equal(window.webContents.userAgent, "hydra-test-agent");
       assert.deepEqual(window.webContents.windowOpenHandler?.({ url: "x" }), {
         action: "deny",
       });

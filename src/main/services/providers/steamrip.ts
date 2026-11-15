@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type {
   ProviderContext,
   ProviderDefinition,
@@ -13,7 +12,14 @@ import {
   scoreTitleMatch,
 } from "../../../shared/source-matching.js";
 import { HiddenBrowserSession } from "../source-fetch/browser-session.js";
-import { SourceFetchError } from "../source-fetch/errors.js";
+import {
+  SourceFetchError,
+  isSourceFetchError,
+} from "../source-fetch/errors.js";
+import {
+  getSourceErrorName,
+  logSourceEvent,
+} from "../source-fetch/source-log.js";
 import { isHostAllowed, parseHttpUrl } from "../source-fetch/url-policy.js";
 import {
   absoluteUrl,
@@ -27,18 +33,17 @@ import {
 
 export const STEAMRIP_BASE_URL = "https://steamrip.com";
 
-const PARTITION_PREFIX = "source-steamrip";
+const STEAMRIP_HOST = new URL(STEAMRIP_BASE_URL).hostname;
+// Persistent on purpose: a cold profile per search looks like a new client to the WAF.
+const STEAMRIP_PARTITION = "persist:hydra-steamrip";
+// The default hydralauncher/... UA gets a plain 403 from SteamRip's WAF.
+const CHROME_MAJOR = process.versions.chrome?.split(".")[0] ?? "146";
+const STEAMRIP_USER_AGENT = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME_MAJOR}.0.0.0 Safari/537.36`;
+const PAGE_ATTEMPTS = 2;
 const SESSION_TIMEOUT_MS = 45_000;
 
-// A reused browser partition can return an empty page on the next search.
-const getSessionPartition = (requestId: string): string =>
-  `${PARTITION_PREFIX}-${createHash("sha256")
-    .update(requestId)
-    .digest("hex")
-    .slice(0, 16)}`;
-
 const BLOCKED_PAGE_TEXT =
-  /just a moment|checking your browser|verify you are human|attention required|you have been blocked/i;
+  /just a moment|checking your browser|verify you are human|attention required|you have been blocked|403 forbidden|error code: 10\d\d|too many requests/i;
 
 const assertPageReadable = (document: Document): void => {
   const bodyText = (document.body?.textContent ?? "").trim();
@@ -49,6 +54,22 @@ const assertPageReadable = (document: Document): void => {
       "SteamRip returned an empty or blocked page."
     );
   }
+};
+
+const TITLE_TAG = /<title[^>]*>([\s\S]*?)<\/title>/i;
+
+const describePage = (html: string) => {
+  const title = TITLE_TAG.exec(html)?.[1]?.replace(/\s+/g, " ").trim();
+
+  return { title: title?.slice(0, 200) ?? "", length: html.length };
+};
+
+const isRetryablePageFailure = (error: unknown, html: string): boolean => {
+  if (!isSourceFetchError(error)) return false;
+  if (error.code === "PARSE") return true;
+
+  // Empty pages recover in a new window; challenge and WAF pages do not.
+  return error.code === "BLOCKED" && !BLOCKED_PAGE_TEXT.test(html);
 };
 
 const HOSTERS = [
@@ -280,11 +301,12 @@ export const parseSteamRipGame = (
   return { size, ...(build ? { build } : {}), links: groupParts(links) };
 };
 
-const readPage = async (url: string, requestId: string): Promise<string> => {
+const readPage = async (url: string): Promise<string> => {
   const session = await HiddenBrowserSession.open({
-    partition: getSessionPartition(requestId),
+    partition: STEAMRIP_PARTITION,
+    userAgent: STEAMRIP_USER_AGENT,
     timeoutMs: SESSION_TIMEOUT_MS,
-    allowedHosts: [new URL(STEAMRIP_BASE_URL).hostname],
+    allowedHosts: [STEAMRIP_HOST],
   });
 
   try {
@@ -300,6 +322,45 @@ const readPage = async (url: string, requestId: string): Promise<string> => {
     return await session.readHtml();
   } finally {
     session.close();
+  }
+};
+
+const readParsedPage = async <T>(
+  url: string,
+  ctx: ProviderContext,
+  phase: "search" | "scrape",
+  parse: (html: string) => T
+): Promise<T> => {
+  for (let attempt = 0; ; attempt += 1) {
+    const html = await readPage(url);
+
+    try {
+      return parse(html);
+    } catch (error) {
+      const retry =
+        attempt + 1 < PAGE_ATTEMPTS && isRetryablePageFailure(error, html);
+
+      logSourceEvent(
+        ctx.logger,
+        {
+          event: "provider.page.failed",
+          providerId: "steamrip",
+          technique: "browser",
+          host: STEAMRIP_HOST,
+          ...(isSourceFetchError(error) ? { errorCode: error.code } : {}),
+          errorName: getSourceErrorName(error),
+          details: {
+            phase,
+            attempt: attempt + 1,
+            retry,
+            ...describePage(html),
+          },
+        },
+        "warn"
+      );
+
+      if (!retry) throw error;
+    }
   }
 };
 
@@ -322,10 +383,8 @@ export const steamripProvider: ProviderDefinition = {
       `/?s=${encodeURIComponent(request.title)}`,
       STEAMRIP_BASE_URL
     ).toString();
-    const hits = parseSteamRipSearch(
-      await readPage(pageUrl, ctx.requestId),
-      request.title,
-      pageUrl
+    const hits = await readParsedPage(pageUrl, ctx, "search", (html) =>
+      parseSteamRipSearch(html, request.title, pageUrl)
     );
 
     // Title matching is not enough for same-name remakes; scrape verifies this appid.
@@ -339,10 +398,8 @@ export const steamripProvider: ProviderDefinition = {
   ): Promise<ProviderLink[]> {
     ctx.signal.throwIfAborted();
 
-    const page = parseSteamRipGame(
-      await readPage(hit.url, ctx.requestId),
-      hit.url,
-      hit.steamAppId
+    const page = await readParsedPage(hit.url, ctx, "scrape", (html) =>
+      parseSteamRipGame(html, hit.url, hit.steamAppId)
     );
 
     return page.links.map((link) => ({ ...link, referer: hit.url }));

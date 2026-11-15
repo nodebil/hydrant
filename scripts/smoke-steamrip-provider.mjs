@@ -19,7 +19,7 @@ await mkdir(cacheDir, { recursive: true });
 const workDir = await mkdtemp(path.join(cacheDir, "steamrip-smoke-"));
 
 const smokeMain = `const assert = require("node:assert/strict");
-const { app } = require("electron");
+const { app, session } = require("electron");
 
 process.on("uncaughtException", (error) => {
   console.error(error);
@@ -30,6 +30,13 @@ const { steamripProvider } = require("./steamrip.cjs");
 
 app.disableHardwareAcceleration();
 app.on("window-all-closed", () => undefined);
+
+const steamripCookies = async () => {
+  const cookies = await session
+    .fromPartition("persist:hydra-steamrip")
+    .cookies.get({ domain: "steamrip.com" });
+  return cookies.map((cookie) => cookie.name).sort();
+};
 
 const games = [
   { title: "ELDEN RING", appId: 1245620, expect: ["gofile", "buzzheavier", "fileditch"] },
@@ -45,6 +52,9 @@ const repeatedGames = [
 const logger = { debug() {}, info() {}, warn() {}, error() {} };
 
 const run = async () => {
+  const cookiesBefore = await steamripCookies();
+  console.log("COOKIES_START " + JSON.stringify(cookiesBefore));
+
   const report = [];
 
   const runGame = async (game, requestId) => {
@@ -105,7 +115,17 @@ const run = async () => {
     }
   }
 
-  console.log("RESULT " + JSON.stringify({ steamrip: "passed", report }));
+  const cookiesAfter = await steamripCookies();
+  console.log("COOKIES_END " + JSON.stringify(cookiesAfter));
+  console.log(
+    "RESULT " +
+      JSON.stringify({
+        steamrip: "passed",
+        cookiesBefore,
+        cookiesAfter,
+        report,
+      })
+  );
 };
 
 app.whenReady().then(async () => {

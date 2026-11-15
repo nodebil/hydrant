@@ -13,6 +13,7 @@ export type BrowserWindowFactory = (
 
 export interface HiddenBrowserSessionOptions {
   partition: string;
+  userAgent?: string;
   timeoutMs?: number;
   pollIntervalMs?: number;
   allowedHosts?: string[];
@@ -161,6 +162,10 @@ export class HiddenBrowserSession {
     const window = await (options.windowFactory ?? createBrowserWindow)(
       windowOptions
     );
+
+    if (options.userAgent) {
+      window.webContents.setUserAgent(options.userAgent);
+    }
 
     const session = new HiddenBrowserSession(window, options);
     try {

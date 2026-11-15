@@ -1,15 +1,20 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import ts from "typescript";
-import type { ProviderContext, SourceSearchRequest } from "@types";
+import type {
+  ProviderContext,
+  SourceLogger,
+  SourceSearchRequest,
+} from "@types";
 import { Downloader } from "../../../shared/constants.js";
 import { getDownloadersForUris } from "../../../shared/downloader-mapping.js";
 import * as matchingModule from "../../../shared/source-matching.js";
 import { toSyntheticRepack } from "../../../shared/source-repack.js";
 import * as errorsModule from "../source-fetch/errors.js";
 import { isSourceFetchError } from "../source-fetch/errors.js";
+import * as sourceLogModule from "../source-fetch/source-log.js";
+import type { SourceLogEvent } from "../source-fetch/source-log.js";
 import * as urlPolicyModule from "../source-fetch/url-policy.js";
 import * as htmlModule from "./html.js";
 import {
@@ -52,12 +57,12 @@ const loadProviderWithSession = (
     }
   );
   const stubs: Record<string, unknown> = {
-    "node:crypto": { createHash },
     "../../../shared/source-matching.js": matchingModule,
     "../source-fetch/browser-session.js": {
       HiddenBrowserSession: { open },
     },
     "../source-fetch/errors.js": errorsModule,
+    "../source-fetch/source-log.js": sourceLogModule,
     "../source-fetch/url-policy.js": urlPolicyModule,
     "./html.js": htmlModule,
   };
@@ -78,26 +83,44 @@ const noopLogger = {
   error: () => undefined,
 };
 
-const createStaleSessionFactory = (freshHtml: string) => {
-  const usedPartitions = new Set<string>();
+const createRecordingLogger = () => {
+  const entries: { level: string; event: SourceLogEvent }[] = [];
+  const record =
+    (level: string) => (_prefix: unknown, event: SourceLogEvent) => {
+      entries.push({ level, event });
+    };
+
+  const logger: SourceLogger = {
+    debug: record("debug"),
+    info: record("info"),
+    warn: record("warn"),
+    error: record("error"),
+  };
+
+  return { entries, logger };
+};
+
+const createSequencedSessionFactory = (pages: string[]) => {
   const partitions: string[] = [];
+  const userAgents: string[] = [];
 
   const open = async (options: {
     partition: string;
+    userAgent?: string;
   }): Promise<FakeBrowserSession> => {
-    const stale = usedPartitions.has(options.partition);
-    usedPartitions.add(options.partition);
+    const page = pages[Math.min(partitions.length, pages.length - 1)];
     partitions.push(options.partition);
+    userAgents.push(options.userAgent ?? "");
 
     return {
       navigate: async () => undefined,
       detectCloudflare: async () => false,
-      readHtml: async () => (stale ? "" : freshHtml),
+      readHtml: async () => page,
       close: () => undefined,
     };
   };
 
-  return { open, partitions };
+  return { open, partitions, userAgents };
 };
 
 const searchRequest = (requestId: string): SourceSearchRequest => ({
@@ -108,10 +131,13 @@ const searchRequest = (requestId: string): SourceSearchRequest => ({
   steamAppId: 1245620,
 });
 
-const providerContext = (requestId: string): ProviderContext => ({
+const providerContext = (
+  requestId: string,
+  logger: SourceLogger = noopLogger
+): ProviderContext => ({
   signal: new AbortController().signal,
   fetch: globalThis.fetch,
-  logger: noopLogger,
+  logger,
   requestId,
 });
 
@@ -291,8 +317,10 @@ describe("steamrip provider", () => {
     );
   });
 
-  it("keeps repeated searches in one process on fresh browser sessions", async () => {
-    const fake = createStaleSessionFactory(fixture("steamrip-search.html"));
+  it("reuses one persistent SteamRip partition across searches", async () => {
+    const fake = createSequencedSessionFactory([
+      fixture("steamrip-search.html"),
+    ]);
     const provider = loadProviderWithSession(fake.open);
 
     const first = await provider.search(
@@ -306,6 +334,132 @@ describe("steamrip provider", () => {
 
     assert.equal(first.length, 1);
     assert.equal(second.length, 1);
-    assert.notEqual(fake.partitions[0], fake.partitions[1]);
+    assert.deepEqual(fake.partitions, [
+      "persist:hydra-steamrip",
+      "persist:hydra-steamrip",
+    ]);
+  });
+
+  it("presents a plain Chrome user agent instead of the app identity", async () => {
+    const fake = createSequencedSessionFactory([
+      fixture("steamrip-search.html"),
+    ]);
+    const provider = loadProviderWithSession(fake.open);
+
+    await provider.search(
+      searchRequest("user-agent"),
+      providerContext("user-agent")
+    );
+
+    assert.match(
+      fake.userAgents[0],
+      /^Mozilla\/5\.0 .* Chrome\/\d+\.0\.0\.0 Safari\/537\.36$/
+    );
+    assert.doesNotMatch(fake.userAgents[0], /Electron|hydralauncher/);
+  });
+
+  it("retries an empty page once in a new window and logs it", async () => {
+    const fake = createSequencedSessionFactory([
+      "",
+      fixture("steamrip-search.html"),
+    ]);
+    const { entries, logger } = createRecordingLogger();
+    const provider = loadProviderWithSession(fake.open);
+
+    const hits = await provider.search(
+      searchRequest("retry-empty"),
+      providerContext("retry-empty", logger)
+    );
+
+    assert.equal(hits.length, 1);
+    assert.deepEqual(fake.partitions, [
+      "persist:hydra-steamrip",
+      "persist:hydra-steamrip",
+    ]);
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].level, "warn");
+    assert.equal(entries[0].event.errorCode, "BLOCKED");
+    assert.deepEqual(entries[0].event.details, {
+      phase: "search",
+      attempt: 1,
+      retry: true,
+      title: "",
+      length: 0,
+    });
+  });
+
+  it("returns PARSE after one retry when selectors drift and logs the page", async () => {
+    const drift = fixture("steamrip-search-drift.html");
+    const fake = createSequencedSessionFactory([drift, drift]);
+    const { entries, logger } = createRecordingLogger();
+    const provider = loadProviderWithSession(fake.open);
+
+    await assert.rejects(
+      () =>
+        provider.search(
+          searchRequest("retry-drift"),
+          providerContext("retry-drift", logger)
+        ),
+      isParseError
+    );
+
+    assert.deepEqual(fake.partitions, [
+      "persist:hydra-steamrip",
+      "persist:hydra-steamrip",
+    ]);
+    assert.deepEqual(
+      entries.map((entry) => entry.event.details?.retry),
+      [true, false]
+    );
+    assert.equal(entries[1].event.errorCode, "PARSE");
+    assert.match(String(entries[1].event.details?.title), /^You searched for/);
+    assert.equal(entries[1].event.details?.length, drift.length);
+  });
+
+  it("does not retry a Cloudflare challenge page", async () => {
+    const fake = createSequencedSessionFactory([
+      fixture("steamrip-blocked.html"),
+      fixture("steamrip-search.html"),
+    ]);
+    const { entries, logger } = createRecordingLogger();
+    const provider = loadProviderWithSession(fake.open);
+
+    await assert.rejects(
+      () =>
+        provider.search(
+          searchRequest("retry-challenge"),
+          providerContext("retry-challenge", logger)
+        ),
+      isBlockedError
+    );
+
+    assert.equal(fake.partitions.length, 1);
+    assert.deepEqual(
+      entries.map((entry) => entry.event.details?.retry),
+      [false]
+    );
+  });
+
+  it("classifies a 403 page as BLOCKED without retrying", async () => {
+    const fake = createSequencedSessionFactory([
+      fixture("steamrip-403.html"),
+      fixture("steamrip-search.html"),
+    ]);
+    const { entries, logger } = createRecordingLogger();
+    const provider = loadProviderWithSession(fake.open);
+
+    await assert.rejects(
+      () =>
+        provider.search(
+          searchRequest("blocked-403"),
+          providerContext("blocked-403", logger)
+        ),
+      isBlockedError
+    );
+
+    assert.equal(fake.partitions.length, 1);
+    assert.equal(entries[0].event.errorCode, "BLOCKED");
+    assert.equal(entries[0].event.details?.title, "403 Forbidden");
+    assert.equal(entries[0].event.details?.retry, false);
   });
 });
