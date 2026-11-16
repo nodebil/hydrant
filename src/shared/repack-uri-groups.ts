@@ -11,6 +11,7 @@ export const MULTIPART_DOWNLOADERS: ReadonlySet<Downloader> = new Set([
   Downloader.Rootz,
   Downloader.FileKeeper,
   Downloader.Buzzheavier,
+  Downloader.Fileditch,
 ]);
 
 export const MULTIPART_HOSTER_DOWNLOADS_FEATURE = "MULTIPART_HOSTER_DOWNLOADS";

@@ -27,4 +27,5 @@ export const DOWNLOADER_NAME: Record<Downloader, string> = {
   [Downloader.Epic]: "Epic Games",
   [Downloader.FileKeeper]: "FileKeeper",
   [Downloader.Buzzheavier]: "Buzzheavier",
+  [Downloader.Fileditch]: "Fileditch",
 };

@@ -253,6 +253,7 @@ describe("steamrip provider", () => {
     assert.deepEqual(getDownloadersForUris(repack.uris), [
       Downloader.Gofile,
       Downloader.Buzzheavier,
+      Downloader.Fileditch,
     ]);
     assert.equal(repack.uris.includes("https://gofile.io/d/qpvferIa"), true);
   });

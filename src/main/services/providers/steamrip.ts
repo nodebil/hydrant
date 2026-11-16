@@ -82,7 +82,12 @@ const HOSTERS = [
   {
     hosterId: "fileditch",
     label: "Fileditch",
-    hosts: ["fileditchfiles.st", "itsfileditchfiles.st", "fileditch.com"],
+    hosts: [
+      "fileditchfiles.st",
+      "itsfileditchfiles.st",
+      "fileditchfiles.me",
+      "fileditch.com",
+    ],
   },
 ] as const;
 

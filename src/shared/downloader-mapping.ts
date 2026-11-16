@@ -35,6 +35,13 @@ export const getDownloadersForUri = (uri: string) => {
   ) {
     return [Downloader.Buzzheavier];
   }
+  if (
+    uri.startsWith("https://fileditchfiles.st/") ||
+    uri.startsWith("https://itsfileditchfiles.st/") ||
+    uri.startsWith("https://fileditchfiles.me/")
+  ) {
+    return [Downloader.Fileditch];
+  }
   if (isArchiveOrgFileUri(uri)) {
     return [Downloader.ArchiveOrg];
   }

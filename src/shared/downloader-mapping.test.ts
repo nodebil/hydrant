@@ -16,6 +16,21 @@ describe("downloader mapping", () => {
     ]);
     assert.deepEqual(
       getDownloadersForUri("https://itsfileditchfiles.st/a/b/file.rar"),
+      [Downloader.Fileditch]
+    );
+  });
+
+  it("maps every Fileditch file host", () => {
+    for (const uri of [
+      "https://fileditchfiles.st/a/b/file.rar",
+      "https://itsfileditchfiles.st/a/b/file.rar",
+      "https://fileditchfiles.me/a/b/file.rar",
+    ]) {
+      assert.deepEqual(getDownloadersForUri(uri), [Downloader.Fileditch]);
+    }
+
+    assert.deepEqual(
+      getDownloadersForUri("https://fileditchfiles.st.evil.test/a/b/file.rar"),
       []
     );
   });

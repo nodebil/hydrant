@@ -18,6 +18,7 @@ export const DOWNLOADER_NAME = {
   [Downloader.Epic]: "Epic Games",
   [Downloader.FileKeeper]: "FileKeeper",
   [Downloader.Buzzheavier]: "Buzzheavier",
+  [Downloader.Fileditch]: "Fileditch",
 };
 
 export const MAX_MINUTES_TO_SHOW_IN_PLAYTIME = 120;
