@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
+  APP_DISPLAY_NAME,
   CUSTOM_WINDOW_TITLE_BAR_HEIGHT,
   WINDOW_TITLE_BAR_CONTROL_WIDTH,
   WINDOW_TITLE_BAR_TRANSITION_DURATION_MS,
@@ -28,7 +29,7 @@ export function WindowTitleBar({
 
   return (
     <header className="window-title-bar" style={titleBarStyle}>
-      <h4>Hydra</h4>
+      <h4>{APP_DISPLAY_NAME}</h4>
       <div className="window-title-bar__controls">
         <button
           type="button"

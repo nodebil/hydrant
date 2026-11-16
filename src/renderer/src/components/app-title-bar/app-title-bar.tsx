@@ -9,7 +9,7 @@ import {
 } from "@primer/octicons-react";
 import cn from "classnames";
 
-import { MAIN_WINDOW_TITLE_BAR_HEIGHT } from "@shared";
+import { APP_DISPLAY_NAME, MAIN_WINDOW_TITLE_BAR_HEIGHT } from "@shared";
 
 import { NavigationArrows } from "../navigation-arrows/navigation-arrows";
 import { TitleBarSearch } from "./title-bar-search";
@@ -41,7 +41,7 @@ export function AppTitleBar({
   const { platform, hasNativeWindowDecorations } = window.electron;
 
   // The system draws the window frame and title on macOS and on Linux with
-  // native decorations, so only Hydra's own frame shows the name.
+  // native decorations, so only the app's own frame shows the name.
   const hasCustomFrame =
     platform === "win32" ||
     (platform === "linux" && !hasNativeWindowDecorations);
@@ -59,9 +59,14 @@ export function AppTitleBar({
       <div className="title-bar__brand">
         {hasCustomFrame && (
           <h4>
-            Hydra
-            {hasActiveSubscription && (
-              <span className="title-bar__cloud-text"> Cloud</span>
+            {/* Hydra Cloud keeps its upstream name; only the app name is Hydrant. */}
+            {hasActiveSubscription ? (
+              <>
+                Hydra
+                <span className="title-bar__cloud-text"> Cloud</span>
+              </>
+            ) : (
+              APP_DISPLAY_NAME
             )}
           </h4>
         )}

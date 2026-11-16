@@ -1,3 +1,5 @@
+export const APP_DISPLAY_NAME = "Hydrant";
+
 export enum Downloader {
   RealDebrid = 0,
   Torrent = 1,

@@ -15,6 +15,7 @@ import cn from "classnames";
 import { injectCustomCss, getAchievementSoundVolume } from "@renderer/helpers";
 import { AchievementNotificationItem } from "@renderer/components/achievements/notification/achievement-notification";
 import {
+  APP_DISPLAY_NAME,
   generateAchievementCustomNotificationTest,
   MONACO_VS_URL,
 } from "@shared";
@@ -65,7 +66,7 @@ export default function ThemeEditor() {
   }, [t, i18n.language, notificationVariation, notificationAlignment]);
 
   useEffect(() => {
-    window.document.title = "Hydra - Theme Editor";
+    window.document.title = `${APP_DISPLAY_NAME} - Theme Editor`;
   }, []);
 
   useEffect(() => {

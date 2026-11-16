@@ -5,6 +5,7 @@ import icon from "@resources/icon.png?asset";
 import trayIconDark from "@resources/tray-icon-dark.png?asset";
 import trayIcon from "@resources/tray-icon.png?asset";
 import {
+  APP_DISPLAY_NAME,
   AUTH_WINDOW_CONTENT_HEIGHT,
   AUTH_WINDOW_CONTENT_WIDTH,
   AuthPage,
@@ -1317,7 +1318,7 @@ export class WindowManager {
     const connectionWindow = new BrowserWindow({
       width: layout.width,
       height: layout.height,
-      title: "Hydra",
+      title: APP_DISPLAY_NAME,
       backgroundColor: "#1c1c1c",
       parent: parentWindow,
       modal: true,
@@ -1672,7 +1673,7 @@ export class WindowManager {
       tray.popUpContextMenu(contextMenu);
     };
 
-    tray.setToolTip("Hydra Launcher");
+    tray.setToolTip(APP_DISPLAY_NAME);
 
     if (process.platform === "win32") {
       await updateSystemTray();
