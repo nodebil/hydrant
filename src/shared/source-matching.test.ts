@@ -15,6 +15,7 @@ describe("source matching", () => {
       "marvels spider man"
     );
     assert.equal(normalizeTitle("Dead Space (2023)"), "dead space");
+    assert.equal(normalizeTitle("Dead Space Remake"), "dead space");
     assert.equal(normalizeTitle("ELDEN RING Deluxe Edition"), "elden ring");
     assert.equal(normalizeTitle("ELDEN RING Build-23850278"), "elden ring");
     assert.equal(
@@ -34,6 +35,7 @@ describe("source matching", () => {
     assert.equal(scoreTitleMatch("Pokémon Scarlet", "Pokemon Scarlet"), 1);
     assert.equal(scoreTitleMatch("ELDEN RING Deluxe Edition", "Elden Ring"), 1);
     assert.equal(scoreTitleMatch("Dead Space (2023)", "Dead Space"), 1);
+    assert.equal(scoreTitleMatch("Dead Space (2023)", "Dead Space Remake"), 1);
     assert.equal(
       scoreTitleMatch("Battlefield 2042", "Battlefield 2042 (2021)"),
       1

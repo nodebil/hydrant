@@ -36,6 +36,7 @@ const IGNORED_TOKENS = new Set([
   "special",
   "remastered",
   "remaster",
+  "remake",
 ]);
 
 const normalizeText = (value: string) =>

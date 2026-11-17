@@ -51,8 +51,13 @@ export const stripSiteSuffix = (title: string, siteName: string): string => {
   return normalized.replace(suffix, "").trim() || normalized;
 };
 
+export const decodeHtmlText = (value: string): string | undefined => {
+  const document = parseHtml(`<body>${value}</body>`);
+  return textOf(document.body);
+};
+
 const BUILD_PATTERNS = [
-  /\b(?:build|version)\s*[-_:]?\s*(\d[\d.]*)\b/i,
+  /\b(?:build|version)\s*[-_:.]?\s*(\d[\d.]*)\b/i,
   /\b(v\d+(?:\.\d+)*)\b/i,
 ];
 

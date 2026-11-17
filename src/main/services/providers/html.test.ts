@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   absoluteUrl,
   attr,
+  decodeHtmlText,
   extractBuild,
   extractSize,
   parseHtml,
@@ -73,11 +74,14 @@ describe("html helpers", () => {
     assert.equal(title, "ELDEN RING - SteamGG");
     assert.equal(stripSiteSuffix(title!, "SteamGG"), "ELDEN RING");
 
-    const card = text(document, "ul.newsbh > li.newsbh-item h4");
-    assert.equal(card, "ELDEN RING Deluxe Edition Build-23850278");
+    const card = text(document, "li.newsbh-item h4");
+    assert.equal(
+      card,
+      "Elden Ring Deluxe Edition Free Download [Tarnished Pack/All DLCs/Build-23850278]"
+    );
     assert.equal(extractBuild(card), "23850278");
     assert.equal(
-      absoluteUrl(attr(document, "li.newsbh-item h4 a", "href"), pageUrl),
+      absoluteUrl(attr(document, "li.newsbh-item a", "href"), pageUrl),
       "https://steamgg.net/elden-ring-deluxe-edition-download/"
     );
   });
@@ -104,6 +108,7 @@ describe("html helpers", () => {
   it("extracts builds and sizes", () => {
     assert.equal(extractBuild("Build 25827938"), "25827938");
     assert.equal(extractBuild("Build-23850278"), "23850278");
+    assert.equal(extractBuild("Build.10630057"), "10630057");
     assert.equal(extractBuild("Version: 1.0.3"), "1.0.3");
     assert.equal(extractBuild("v1.17.2"), "v1.17.2");
     assert.equal(extractBuild("v11056"), "v11056");
@@ -162,6 +167,16 @@ describe("html helpers", () => {
     assert.equal(absoluteUrl("data:text/html,hi", baseUrl), undefined);
     assert.equal(absoluteUrl("", baseUrl), undefined);
     assert.equal(absoluteUrl(null, baseUrl), undefined);
+  });
+
+  it("decodes HTML entities in provider titles", () => {
+    assert.equal(
+      decodeHtmlText("Marvel&#8217;s Spider-Man"),
+      "Marvel’s Spider-Man"
+    );
+    assert.equal(decodeHtmlText("A &amp; B"), "A & B");
+    assert.equal(decodeHtmlText("  Elden   Ring  "), "Elden Ring");
+    assert.equal(decodeHtmlText(""), undefined);
   });
 
   it("collapses text and attribute values and misses cleanly", () => {
