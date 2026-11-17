@@ -9,6 +9,7 @@ import type {
 import {
   extractSteamAppId,
   isConfidentMatch,
+  normalizeTitle,
   scoreTitleMatch,
 } from "../../../shared/source-matching.js";
 import { HiddenBrowserSession } from "../source-fetch/browser-session.js";
@@ -16,6 +17,7 @@ import {
   SourceFetchError,
   isSourceFetchError,
 } from "../source-fetch/errors.js";
+import { statusError } from "../source-fetch/http-client.js";
 import {
   getSourceErrorName,
   logSourceEvent,
@@ -24,6 +26,7 @@ import { isHostAllowed, parseHttpUrl } from "../source-fetch/url-policy.js";
 import {
   absoluteUrl,
   attr,
+  decodeHtmlText,
   extractBuild,
   extractSize,
   parseHtml,
@@ -41,6 +44,9 @@ const CHROME_MAJOR = process.versions.chrome?.split(".")[0] ?? "146";
 const STEAMRIP_USER_AGENT = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME_MAJOR}.0.0.0 Safari/537.36`;
 const PAGE_ATTEMPTS = 2;
 const SESSION_TIMEOUT_MS = 45_000;
+const API_PAGE_SIZE = 20;
+const API_MATCH_LIMIT = 10;
+const API_FIELDS = "id,link,title,content,acf";
 
 const BLOCKED_PAGE_TEXT =
   /just a moment|checking your browser|verify you are human|attention required|you have been blocked|403 forbidden|error code: 10\d\d|too many requests/i;
@@ -105,6 +111,17 @@ export interface SteamRipGameInfo {
   build?: string;
   links: ProviderHosterLink[];
 }
+
+interface SteamRipApiPost {
+  id?: number;
+  link: string;
+  title: string;
+  content?: string;
+  steamAppId?: number;
+}
+
+// Hits cross IPC, so the parsed API content stays in-process, keyed by the hit object.
+const parsedGames = new WeakMap<ProviderSearchHit, SteamRipGameInfo>();
 
 const cleanTitle = (value: string): string =>
   value.replace(STEAMRIP_SUFFIX, "").replace(FREE_DOWNLOAD_SUFFIX, "").trim();
@@ -251,22 +268,12 @@ export const parseSteamRipSearch = (
   return hits;
 };
 
-export const parseSteamRipGame = (
-  html: string,
+const readGameInfo = (
+  root: Document,
   pageUrl: string,
-  expectedSteamAppId?: number
+  expectedSteamAppId?: number,
+  pageSteamAppId?: number
 ): SteamRipGameInfo => {
-  const document = parseHtml(html, pageUrl);
-  assertPageReadable(document);
-  const title = text(document, "h1.entry-title");
-
-  if (!title) return { links: [] };
-
-  const article = document.querySelector("article#the-post") ?? document;
-  const pageSteamAppId = extractSteamAppId(
-    attr(article, 'a[href*="steamdb.info/app/"]', "href")
-  );
-
   if (
     expectedSteamAppId &&
     pageSteamAppId &&
@@ -275,7 +282,7 @@ export const parseSteamRipGame = (
     return { links: [] };
   }
 
-  const infoList = findGameInfoList(document);
+  const infoList = findGameInfoList(root);
   if (!infoList) {
     throw new SourceFetchError("PARSE", "SteamRip GAME INFO block is missing.");
   }
@@ -309,6 +316,260 @@ export const parseSteamRipGame = (
   }
 
   return { size, ...(build ? { build } : {}), links: groupParts(links) };
+};
+
+export const parseSteamRipGame = (
+  html: string,
+  pageUrl: string,
+  expectedSteamAppId?: number
+): SteamRipGameInfo => {
+  const document = parseHtml(html, pageUrl);
+  assertPageReadable(document);
+  const title = text(document, "h1.entry-title");
+
+  if (!title) return { links: [] };
+
+  const article = document.querySelector("article#the-post") ?? document;
+  const pageSteamAppId = extractSteamAppId(
+    attr(article, 'a[href*="steamdb.info/app/"]', "href")
+  );
+
+  return readGameInfo(document, pageUrl, expectedSteamAppId, pageSteamAppId);
+};
+
+export const parseSteamRipContent = (
+  html: string,
+  pageUrl: string,
+  expectedSteamAppId?: number,
+  apiSteamAppId?: number
+): SteamRipGameInfo => {
+  const document = parseHtml(html, pageUrl);
+  const pageSteamAppId =
+    apiSteamAppId ??
+    extractSteamAppId(attr(document, 'a[href*="steamdb.info/app/"]', "href"));
+
+  return readGameInfo(document, pageUrl, expectedSteamAppId, pageSteamAppId);
+};
+
+export const buildSteamRipApiSearchUrl = (title: string): string => {
+  const url = new URL("/wp-json/wp/v2/posts", STEAMRIP_BASE_URL);
+  url.search = new URLSearchParams({
+    per_page: String(API_PAGE_SIZE),
+    _fields: API_FIELDS,
+    search: normalizeTitle(title),
+  }).toString();
+  url.searchParams.append("search_columns[]", "post_title");
+
+  return url.toString();
+};
+
+export const buildSteamRipApiFullTextUrl = (title: string): string => {
+  const url = new URL("/wp-json/wp/v2/posts", STEAMRIP_BASE_URL);
+  url.search = new URLSearchParams({
+    per_page: String(API_PAGE_SIZE),
+    orderby: "relevance",
+    _fields: "id,link,title",
+    search: normalizeTitle(title),
+  }).toString();
+
+  return url.toString();
+};
+
+const buildSteamRipApiContentUrl = (ids: number[]): string => {
+  const url = new URL("/wp-json/wp/v2/posts", STEAMRIP_BASE_URL);
+  url.search = new URLSearchParams({
+    per_page: String(API_MATCH_LIMIT),
+    _fields: API_FIELDS,
+    include: ids.join(","),
+  }).toString();
+
+  return url.toString();
+};
+
+const readSteamAppId = (value: unknown): number | undefined => {
+  const appId =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && /^\d+$/.test(value.trim())
+        ? Number(value.trim())
+        : undefined;
+
+  return appId !== undefined && Number.isSafeInteger(appId) && appId > 0
+    ? appId
+    : undefined;
+};
+
+const readApiPost = (post: unknown): SteamRipApiPost | undefined => {
+  if (!post || typeof post !== "object") return undefined;
+
+  const raw = post as Record<string, unknown>;
+  const parsed =
+    typeof raw.link === "string"
+      ? parseHttpUrl(absoluteUrl(raw.link, STEAMRIP_BASE_URL) ?? "")
+      : null;
+
+  if (!parsed || !isHostAllowed(parsed.hostname, [STEAMRIP_HOST])) {
+    return undefined;
+  }
+
+  const renderedTitle = (raw.title as { rendered?: unknown } | undefined)
+    ?.rendered;
+  const title =
+    typeof renderedTitle === "string" ? decodeHtmlText(renderedTitle) : "";
+
+  if (!title) return undefined;
+
+  const renderedContent = (raw.content as { rendered?: unknown } | undefined)
+    ?.rendered;
+  const acf = raw.acf as { steam_app_id?: unknown } | undefined;
+  const id = readSteamAppId(raw.id);
+  const steamAppId = readSteamAppId(acf?.steam_app_id);
+
+  return {
+    ...(id ? { id } : {}),
+    link: parsed.toString(),
+    title,
+    ...(typeof renderedContent === "string"
+      ? { content: renderedContent }
+      : {}),
+    ...(steamAppId ? { steamAppId } : {}),
+  };
+};
+
+const parseApiPosts = (json: string): SteamRipApiPost[] => {
+  let posts: unknown;
+
+  try {
+    posts = JSON.parse(json);
+  } catch {
+    throw new SourceFetchError("PARSE", "SteamRip API returned invalid JSON.");
+  }
+
+  if (!Array.isArray(posts)) {
+    throw new SourceFetchError("PARSE", "SteamRip API response is not a list.");
+  }
+
+  const parsed: SteamRipApiPost[] = [];
+  const seen = new Set<string>();
+
+  for (const post of posts) {
+    const read = readApiPost(post);
+    if (!read || seen.has(read.link)) continue;
+
+    seen.add(read.link);
+    parsed.push(read);
+  }
+
+  if (parsed.length === 0 && posts.length > 0) {
+    throw new SourceFetchError(
+      "PARSE",
+      "SteamRip API posts could not be read."
+    );
+  }
+
+  return parsed;
+};
+
+const selectTitleMatches = (
+  posts: SteamRipApiPost[],
+  requestedTitle: string
+): SteamRipApiPost[] =>
+  posts.filter((post) =>
+    isConfidentMatch(requestedTitle, cleanTitle(post.title))
+  );
+
+const readApiBody = async (
+  url: string,
+  ctx: ProviderContext
+): Promise<string> => {
+  const response = await ctx.fetch(url, { signal: ctx.signal });
+
+  if (!response.ok) throw statusError(response.status, null);
+
+  return response.text();
+};
+
+const toApiHit = (
+  post: SteamRipApiPost,
+  request: SourceSearchRequest
+): ProviderSearchHit | undefined => {
+  const matchTitle = cleanTitle(post.title);
+  if (!isConfidentMatch(request.title, matchTitle)) return undefined;
+
+  if (post.content === undefined) {
+    throw new SourceFetchError(
+      "PARSE",
+      "SteamRip API post content is missing."
+    );
+  }
+
+  const page = parseSteamRipContent(
+    post.content,
+    post.link,
+    request.steamAppId,
+    post.steamAppId
+  );
+  const hit: ProviderSearchHit = {
+    providerId: "steamrip",
+    title: post.title,
+    url: post.link,
+    confidence: scoreTitleMatch(request.title, matchTitle),
+    ...(page.build ? { build: page.build } : {}),
+    ...(page.size ? { size: page.size } : {}),
+    ...(request.steamAppId ? { steamAppId: request.steamAppId } : {}),
+  };
+
+  parsedGames.set(hit, page);
+
+  return hit;
+};
+
+const searchSteamRipApi = async (
+  request: SourceSearchRequest,
+  ctx: ProviderContext
+): Promise<ProviderSearchHit[]> => {
+  let posts = selectTitleMatches(
+    parseApiPosts(
+      await readApiBody(buildSteamRipApiSearchUrl(request.title), ctx)
+    ),
+    request.title
+  );
+
+  if (posts.length === 0) {
+    posts = selectTitleMatches(
+      parseApiPosts(
+        await readApiBody(buildSteamRipApiFullTextUrl(request.title), ctx)
+      ),
+      request.title
+    );
+
+    const ids = posts.flatMap((post) =>
+      post.id === undefined ? [] : [post.id]
+    );
+
+    if (ids.length === 0) {
+      if (posts.length > 0) {
+        throw new SourceFetchError(
+          "PARSE",
+          "SteamRip API post ids are missing."
+        );
+      }
+
+      return [];
+    }
+
+    posts = parseApiPosts(
+      await readApiBody(
+        buildSteamRipApiContentUrl(ids.slice(0, API_MATCH_LIMIT)),
+        ctx
+      )
+    );
+  }
+
+  return posts.flatMap((post) => {
+    const hit = toApiHit(post, request);
+    return hit ? [hit] : [];
+  });
 };
 
 const readPage = async (url: string): Promise<string> => {
@@ -389,6 +650,33 @@ export const steamripProvider: ProviderDefinition = {
   ): Promise<ProviderSearchHit[]> {
     ctx.signal.throwIfAborted();
 
+    let apiHits: ProviderSearchHit[] | undefined;
+
+    try {
+      apiHits = await searchSteamRipApi(request, ctx);
+    } catch (error) {
+      if (ctx.signal.aborted) throw error;
+
+      logSourceEvent(
+        ctx.logger,
+        {
+          event: "provider.api.failed",
+          providerId: "steamrip",
+          technique: "http",
+          host: STEAMRIP_HOST,
+          ...(isSourceFetchError(error) && error.status
+            ? { status: error.status }
+            : {}),
+          ...(isSourceFetchError(error) ? { errorCode: error.code } : {}),
+          errorName: getSourceErrorName(error),
+          details: { phase: "search" },
+        },
+        "warn"
+      );
+    }
+
+    if (apiHits) return apiHits;
+
     const pageUrl = new URL(
       `/?s=${encodeURIComponent(request.title)}`,
       STEAMRIP_BASE_URL
@@ -407,6 +695,11 @@ export const steamripProvider: ProviderDefinition = {
     ctx: ProviderContext
   ): Promise<ProviderLink[]> {
     ctx.signal.throwIfAborted();
+
+    const cached = parsedGames.get(hit);
+    if (cached) {
+      return cached.links.map((link) => ({ ...link, referer: hit.url }));
+    }
 
     const page = await readParsedPage(hit.url, ctx, "scrape", (html) =>
       parseSteamRipGame(html, hit.url, hit.steamAppId)

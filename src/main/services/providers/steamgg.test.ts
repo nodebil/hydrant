@@ -22,7 +22,10 @@ import {
 } from "./steamgg.js";
 
 const fixture = (name: string) =>
-  readFileSync(new URL(`./__fixtures__/${name}`, import.meta.url), "utf8");
+  readFileSync(
+    new URL(`./__fixtures__/steamgg/${name}`, import.meta.url),
+    "utf8"
+  );
 
 const gamePageUrl = "https://steamgg.net/elden-ring-deluxe-edition-download/";
 
@@ -94,10 +97,7 @@ const createFetch = (pages: Record<string, string>) => {
 
 describe("steamgg provider", () => {
   it("matches the requested game and rejects sequels", () => {
-    const hits = parseSteamGgSearch(
-      fixture("steamgg-search.json"),
-      "ELDEN RING"
-    );
+    const hits = parseSteamGgSearch(fixture("search.json"), "ELDEN RING");
 
     assert.equal(hits.length, 1);
     assert.equal(
@@ -116,7 +116,7 @@ describe("steamgg provider", () => {
 
   it("matches both Dead Space posts and keeps the remake build", () => {
     const hits = parseSteamGgSearch(
-      fixture("steamgg-search.json"),
+      fixture("search.json"),
       "Dead Space (2023)"
     );
 
@@ -132,7 +132,7 @@ describe("steamgg provider", () => {
 
   it("decodes HTML entities and matches apostrophes and remaster suffixes", () => {
     const hits = parseSteamGgSearch(
-      fixture("steamgg-search.json"),
+      fixture("search.json"),
       "Marvel's Spider-Man Remastered"
     );
 
@@ -189,11 +189,7 @@ describe("steamgg provider", () => {
   });
 
   it("reads only supported post download buttons", () => {
-    const page = parseSteamGgGame(
-      fixture("steamgg-game.html"),
-      gamePageUrl,
-      1245620
-    );
+    const page = parseSteamGgGame(fixture("game.html"), gamePageUrl, 1245620);
 
     assert.deepEqual(
       page.links.map((link) => link.hosterId),
@@ -214,7 +210,7 @@ describe("steamgg provider", () => {
 
   it("drops update rows from the download set", () => {
     const page = parseSteamGgGame(
-      fixture("steamgg-game-update.html"),
+      fixture("game-update.html"),
       "https://steamgg.net/cyberpunk-2077-pc-game-latest/",
       1091500
     );
@@ -231,36 +227,24 @@ describe("steamgg provider", () => {
   });
 
   it("drops a candidate page that belongs to another steam app", () => {
-    const page = parseSteamGgGame(
-      fixture("steamgg-game.html"),
-      gamePageUrl,
-      17470
-    );
+    const page = parseSteamGgGame(fixture("game.html"), gamePageUrl, 17470);
 
     assert.deepEqual(page.links, []);
   });
 
   it("returns PARSE when the post body or download buttons disappear", () => {
     assert.throws(
-      () => parseSteamGgGame(fixture("steamgg-game-drift.html"), gamePageUrl),
+      () => parseSteamGgGame(fixture("game-drift.html"), gamePageUrl),
       isParseError
     );
     assert.throws(
-      () =>
-        parseSteamGgGame(
-          fixture("steamgg-game-buttons-missing.html"),
-          gamePageUrl
-        ),
+      () => parseSteamGgGame(fixture("game-buttons-missing.html"), gamePageUrl),
       isParseError
     );
   });
 
   it("hands supported SteamGG links to the downloader mapping", () => {
-    const page = parseSteamGgGame(
-      fixture("steamgg-game.html"),
-      gamePageUrl,
-      1245620
-    );
+    const page = parseSteamGgGame(fixture("game.html"), gamePageUrl, 1245620);
     const repack = toSyntheticRepack(
       steamggProvider,
       {
@@ -287,7 +271,7 @@ describe("steamgg provider", () => {
   it("searches the WordPress endpoint and tags hits with the steam appid", async () => {
     const searchUrl = buildSteamGgSearchUrl("ELDEN RING");
     const fake = createFetch({
-      [searchUrl]: fixture("steamgg-search.json"),
+      [searchUrl]: fixture("search.json"),
     });
     const request = searchRequest("steamgg-search");
     const hits = await steamggProvider.search(request, {
@@ -389,7 +373,7 @@ describe("steamgg provider", () => {
 
   it("scrapes the hit page and keeps the provider page as referer", async () => {
     const fake = createFetch({
-      [gamePageUrl]: fixture("steamgg-game.html"),
+      [gamePageUrl]: fixture("game.html"),
     });
     const request = {
       providerId: "steamgg" as const,

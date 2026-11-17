@@ -18,7 +18,7 @@ const fixture = (name: string) =>
 describe("html helpers", () => {
   it("reads audited SteamRip search cards", () => {
     const pageUrl = "https://steamrip.com/?s=elden+ring";
-    const document = parseHtml(fixture("steamrip-search.html"), pageUrl);
+    const document = parseHtml(fixture("steamrip/search.html"), pageUrl);
 
     assert.equal(
       attr(document, "a.all-over-thumb-link", "href"),
@@ -41,7 +41,7 @@ describe("html helpers", () => {
 
   it("reads the audited SteamRip GAME INFO block and links", () => {
     const document = parseHtml(
-      fixture("steamrip-game.html"),
+      fixture("steamrip/game.html"),
       "https://steamrip.com/elden-ring-de-free-download-1gg/"
     );
 
@@ -68,7 +68,7 @@ describe("html helpers", () => {
 
   it("reads audited SteamGG search results and strips the site suffix", () => {
     const pageUrl = "https://steamgg.net/?s=elden+ring";
-    const document = parseHtml(fixture("steamgg-search.html"), pageUrl);
+    const document = parseHtml(fixture("steamgg/search.html"), pageUrl);
 
     const title = text(document, "title");
     assert.equal(title, "ELDEN RING - SteamGG");
