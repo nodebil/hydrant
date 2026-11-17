@@ -2638,18 +2638,6 @@ export class DownloadManager {
       case Downloader.Hydra: {
         throw new Error(DownloadError.NotCachedOnHydra);
       }
-      case Downloader.VikingFile: {
-        logger.log(
-          `[DownloadManager] Processing VikingFile download for URI: ${download.uri}`
-        );
-        const downloadUrl = await VikingFileApi.getDownloadUrl(download.uri);
-        return this.createDownloadPayload(
-          downloadUrl,
-          download.uri,
-          downloadId,
-          download.downloadPath
-        );
-      }
       case Downloader.Rootz: {
         const downloadUrl = await RootzApi.getDownloadUrl(download.uri);
         return {
