@@ -42,6 +42,7 @@ import {
   BuzzheavierApi,
   FileditchApi,
   AkiraboxApi,
+  MegaDBApi,
   AKIRABOX_REFERER,
 } from "../hosters";
 import { TorrentService } from "../torrent-service";
@@ -1721,6 +1722,8 @@ export class DownloadManager {
         return this.getFileditchDownloadOptions(download, resumingFilename);
       case Downloader.Akirabox:
         return this.getAkiraboxDownloadOptions(download, resumingFilename);
+      case Downloader.MegaDB:
+        return this.getMegaDBDownloadOptions(download, resumingFilename);
       case Downloader.ArchiveOrg:
         return this.getArchiveOrgDownloadOptions(download, resumingFilename);
       default:
@@ -2467,6 +2470,26 @@ export class DownloadManager {
       download.downloadPath,
       filename,
       { Referer: AKIRABOX_REFERER }
+    );
+  }
+
+  private static async getMegaDBDownloadOptions(
+    download: Download,
+    resumingFilename?: string
+  ) {
+    logger.log(
+      `[DownloadManager] Processing MegaDB download for URI: ${download.uri}`
+    );
+    const downloadUrl = await MegaDBApi.getDownloadUrl(download.uri);
+    const filename = this.resolveFilename(
+      resumingFilename,
+      download.uri,
+      downloadUrl
+    );
+    return this.buildDownloadOptions(
+      downloadUrl,
+      download.downloadPath,
+      filename
     );
   }
 

@@ -49,6 +49,17 @@ describe("downloader mapping", () => {
     );
   });
 
+  it("maps MegaDB file pages", () => {
+    assert.deepEqual(
+      getDownloadersForUri("https://megadb.net/89bf12c47dbe5b69"),
+      [Downloader.MegaDB]
+    );
+    assert.deepEqual(
+      getDownloadersForUri("https://megadb.net.evil.test/89bf12c47dbe5b69"),
+      []
+    );
+  });
+
   it("maps every Buzzheavier domain", () => {
     for (const uri of [
       "https://buzzheavier.com/abc",

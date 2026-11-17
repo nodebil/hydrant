@@ -89,6 +89,11 @@ const HOSTERS = [
       "fileditch.com",
     ],
   },
+  {
+    hosterId: "megadb",
+    label: "MegaDB",
+    hosts: ["megadb.net"],
+  },
 ] as const;
 
 const FREE_DOWNLOAD_SUFFIX = /\s*free download\b.*$/i;

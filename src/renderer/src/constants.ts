@@ -20,6 +20,7 @@ export const DOWNLOADER_NAME = {
   [Downloader.Buzzheavier]: "Buzzheavier",
   [Downloader.Fileditch]: "Fileditch",
   [Downloader.Akirabox]: "Akirabox",
+  [Downloader.MegaDB]: "MegaDB",
 };
 
 export const MAX_MINUTES_TO_SHOW_IN_PLAYTIME = 120;

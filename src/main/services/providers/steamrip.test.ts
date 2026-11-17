@@ -221,6 +221,28 @@ describe("steamrip provider", () => {
     assert.ok(!page.links.some((link) => link.url.includes("language-pack")));
   });
 
+  it("keeps the MegaDB mirror as a supported hoster link", () => {
+    const page = parseSteamRipGame(
+      fixture("steamrip-game-megadb.html"),
+      "https://steamrip.com/ftl-faster-than-light-free-download/"
+    );
+
+    assert.deepEqual(
+      page.links.map((link) => ({
+        hosterId: link.hosterId,
+        label: link.label,
+        url: link.url,
+      })),
+      [
+        {
+          hosterId: "megadb",
+          label: "MegaDB",
+          url: "https://megadb.net/89bf12c47dbe5b69",
+        },
+      ]
+    );
+  });
+
   it("drops a candidate page that belongs to another steam app", () => {
     const page = parseSteamRipGame(
       fixture("steamrip-game.html"),

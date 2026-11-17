@@ -9,3 +9,4 @@ export * from "./filekeeper";
 export * from "./buzzheavier";
 export * from "./fileditch";
 export * from "./akirabox";
+export * from "./megadb";

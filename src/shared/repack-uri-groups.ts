@@ -13,6 +13,7 @@ export const MULTIPART_DOWNLOADERS: ReadonlySet<Downloader> = new Set([
   Downloader.Buzzheavier,
   Downloader.Fileditch,
   Downloader.Akirabox,
+  Downloader.MegaDB,
 ]);
 
 export const MULTIPART_HOSTER_DOWNLOADS_FEATURE = "MULTIPART_HOSTER_DOWNLOADS";

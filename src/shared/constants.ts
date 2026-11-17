@@ -20,6 +20,7 @@ export enum Downloader {
   Buzzheavier = 17,
   Fileditch = 18,
   Akirabox = 19,
+  MegaDB = 20,
 }
 
 export enum DownloadSourceStatus {

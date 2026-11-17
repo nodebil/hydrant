@@ -48,6 +48,7 @@ export const getDownloadersForUri = (uri: string) => {
   ) {
     return [Downloader.Akirabox];
   }
+  if (uri.startsWith("https://megadb.net/")) return [Downloader.MegaDB];
   if (isArchiveOrgFileUri(uri)) {
     return [Downloader.ArchiveOrg];
   }

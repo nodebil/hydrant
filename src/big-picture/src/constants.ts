@@ -29,4 +29,5 @@ export const DOWNLOADER_NAME: Record<Downloader, string> = {
   [Downloader.Buzzheavier]: "Buzzheavier",
   [Downloader.Fileditch]: "Fileditch",
   [Downloader.Akirabox]: "Akirabox",
+  [Downloader.MegaDB]: "MegaDB",
 };
