@@ -1,4 +1,8 @@
-import type { SourceSearchResult, SourceSearchStatus } from "@types";
+import type {
+  SourceGameRepack,
+  SourceSearchResult,
+  SourceSearchStatus,
+} from "@types";
 
 const FAILED_STATUSES: SourceSearchStatus[] = [
   "error",
@@ -27,4 +31,14 @@ export const getSourceSearchOutcome = (
   }
 
   return "done";
+};
+
+export const appendSourceRepacks = (
+  current: SourceGameRepack[],
+  incoming: SourceGameRepack[]
+): SourceGameRepack[] => {
+  const seen = new Set(current.map((repack) => repack.id));
+  const appended = incoming.filter((repack) => !seen.has(repack.id));
+
+  return appended.length > 0 ? [...current, ...appended] : current;
 };

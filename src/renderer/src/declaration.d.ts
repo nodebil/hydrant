@@ -149,6 +149,7 @@ import type {
   EpicLaunchOptions,
   EpicLinuxCompatibility,
   SourceProviderStatusEvent,
+  SourceProviderResultEvent,
   SourceProviderId,
   SourceSearchRequest,
   SourceSearchResult,
@@ -385,6 +386,9 @@ declare global {
     cancelSourceProviderSearch: (requestId: string) => Promise<void>;
     onSourceProviderStatus: (
       cb: (status: SourceProviderStatusEvent) => void
+    ) => () => Electron.IpcRenderer;
+    onSourceProviderResult: (
+      cb: (event: SourceProviderResultEvent) => void
     ) => () => Electron.IpcRenderer;
 
     /* Catalogue */

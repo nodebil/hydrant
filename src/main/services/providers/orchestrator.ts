@@ -39,6 +39,7 @@ export interface SearchProvidersOptions {
   logger: SourceLogger;
   isProviderEnabled?: (providerId: SourceProviderId) => Promise<boolean>;
   onStatus?: (event: SourceProviderStatusEvent) => void;
+  onProviderResult?: (result: SourceSearchResult) => void;
   preferences?: SourcePreferences;
   policy?: SelectionPolicy;
   onCandidateSelected?: (candidate: RankedSourceCandidate) => void;
@@ -289,6 +290,7 @@ export const searchProviders = async (
     async (provider) => {
       const candidates: SourceCandidate[] = [];
       const result = await runProvider(provider, request, options, candidates);
+      options.onProviderResult?.(result);
 
       return { result, candidates };
     }

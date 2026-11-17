@@ -200,6 +200,11 @@ export interface SourceProviderStatusEvent {
   errorCode?: SourceErrorCode;
 }
 
+export interface SourceProviderResultEvent {
+  requestId: string;
+  result: SourceSearchResult;
+}
+
 export interface SourceCancelRequest {
   requestId: string;
 }

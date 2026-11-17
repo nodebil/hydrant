@@ -1,5 +1,9 @@
-import type { SourceProviderStatusEvent } from "@types";
+import type {
+  SourceProviderResultEvent,
+  SourceProviderStatusEvent,
+} from "@types";
 import {
+  SOURCE_PROVIDER_RESULT_CHANNEL,
   SOURCE_PROVIDER_SEARCH_CHANNEL,
   SOURCE_PROVIDER_STATUS_CHANNEL,
 } from "@shared";
@@ -22,6 +26,15 @@ const sendStatus = (
   }
 };
 
+const sendResult = (
+  event: Electron.IpcMainInvokeEvent,
+  payload: SourceProviderResultEvent
+) => {
+  if (!event.sender.isDestroyed()) {
+    event.sender.send(SOURCE_PROVIDER_RESULT_CHANNEL, payload);
+  }
+};
+
 const searchSourceProviders = async (
   event: Electron.IpcMainInvokeEvent,
   payload: unknown
@@ -35,6 +48,8 @@ const searchSourceProviders = async (
       logger,
       isProviderEnabled: isProviderAvailable,
       onStatus: (status) => sendStatus(event, status),
+      onProviderResult: (result) =>
+        sendResult(event, { requestId: request.requestId, result }),
     });
   } finally {
     finishSourceProviderSearch(request.requestId, controller);

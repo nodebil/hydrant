@@ -7,6 +7,7 @@ import type {
   RankedSourceCandidate,
   SourceProviderStatusEvent,
   SourceSearchRequest,
+  SourceSearchResult,
 } from "@types";
 import {
   SourceFetchError,
@@ -414,11 +415,13 @@ describe("source provider orchestrator", () => {
     registerProvider(fast);
 
     const statuses: SourceProviderStatusEvent[] = [];
+    const streamed: SourceSearchResult[] = [];
     const results = await searchProviders(makeRequest([slow.id, fast.id]), {
       signal: new AbortController().signal,
       logger,
       providerTimeoutMs: 25,
       onStatus: (event) => statuses.push(event),
+      onProviderResult: (result) => streamed.push(result),
     });
 
     assert.deepEqual(
@@ -431,6 +434,18 @@ describe("source provider orchestrator", () => {
     assert.equal(results[1].repacks.length, 1);
     assert.equal(aborted, true);
 
+    const streamedFast = streamed.find(
+      (result) => result.providerId === fast.id
+    );
+    const streamedSlow = streamed.find(
+      (result) => result.providerId === slow.id
+    );
+
+    assert.equal(streamedFast?.status, "ok");
+    assert.equal(streamedFast?.repacks.length, 1);
+    assert.equal(streamedSlow?.status, "timeout");
+    assert.deepEqual(streamedSlow?.repacks, []);
+
     await new Promise((resolve) => setTimeout(resolve, 120));
 
     assert.deepEqual(
@@ -440,6 +455,49 @@ describe("source provider orchestrator", () => {
       ["searching", "error"]
     );
     assert.equal(results[0].repacks.length, 0);
+  });
+
+  it("streams each provider result before the search settles", async () => {
+    let releaseSlow: () => void = () => {};
+    const slowGate = new Promise<void>((resolve) => {
+      releaseSlow = resolve;
+    });
+    const slow = makeProvider("orchestrator-stream-slow", {
+      async search() {
+        await slowGate;
+        return [{ ...hit, providerId: "orchestrator-stream-slow" }];
+      },
+    });
+    const fast = makeProvider("orchestrator-stream-fast");
+    registerProvider(slow);
+    registerProvider(fast);
+
+    const streamed: SourceSearchResult[] = [];
+    const pending = searchProviders(makeRequest([slow.id, fast.id]), {
+      signal: new AbortController().signal,
+      logger,
+      onProviderResult: (result) => streamed.push(result),
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    assert.deepEqual(
+      streamed.map((result) => result.providerId),
+      [fast.id]
+    );
+    assert.equal(streamed[0].repacks.length, 1);
+
+    releaseSlow();
+    const results = await pending;
+
+    assert.deepEqual(
+      streamed.map((result) => result.providerId),
+      [fast.id, slow.id]
+    );
+    assert.deepEqual(
+      results.map((result) => result.providerId),
+      [slow.id, fast.id]
+    );
   });
 
   it("caps how many providers search at once", async () => {

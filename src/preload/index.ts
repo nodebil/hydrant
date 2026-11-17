@@ -116,6 +116,7 @@ import type {
   LocalScreenshotUploadOptions,
   ScreenshotUploadProgress,
   SourceProviderStatusEvent,
+  SourceProviderResultEvent,
   SourceProviderId,
   SourceSearchRequest,
   SourceSearchResult,
@@ -125,6 +126,7 @@ import { NATIVE_WINDOW_DECORATIONS_ARGUMENT } from "../shared/window-layout";
 import {
   SOURCE_PROVIDER_AVAILABILITY_CHANNEL,
   SOURCE_PROVIDER_CANCEL_CHANNEL,
+  SOURCE_PROVIDER_RESULT_CHANNEL,
   SOURCE_PROVIDER_SEARCH_CHANNEL,
   SOURCE_PROVIDER_STATUS_CHANNEL,
 } from "../shared/source-providers";
@@ -546,6 +548,15 @@ contextBridge.exposeInMainWorld("electron", {
     ipcRenderer.on(SOURCE_PROVIDER_STATUS_CHANNEL, listener);
     return () =>
       ipcRenderer.removeListener(SOURCE_PROVIDER_STATUS_CHANNEL, listener);
+  },
+  onSourceProviderResult: (cb: (event: SourceProviderResultEvent) => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      payload: SourceProviderResultEvent
+    ) => cb(payload);
+    ipcRenderer.on(SOURCE_PROVIDER_RESULT_CHANNEL, listener);
+    return () =>
+      ipcRenderer.removeListener(SOURCE_PROVIDER_RESULT_CHANNEL, listener);
   },
 
   /* Catalogue */

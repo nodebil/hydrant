@@ -27,7 +27,10 @@ import { useDate, useFeature } from "@renderer/hooks";
 import { logger } from "@renderer/logger";
 
 import { getRepackAvailabilityStatus } from "./repack-availability";
-import { getSourceSearchOutcome } from "./source-repacks-state";
+import {
+  appendSourceRepacks,
+  getSourceSearchOutcome,
+} from "./source-repacks-state";
 import "./source-repacks-section.scss";
 
 type SourceSearchPhase =
@@ -91,6 +94,25 @@ export function SourceRepacksSection({
       });
   }, []);
 
+  const multipartHosterDownloads = isFeatureEnabled(
+    Feature.MultipartHosterDownloads
+  );
+
+  useEffect(() => {
+    return window.electron.onSourceProviderResult((event) => {
+      if (event.requestId !== requestIdRef.current) return;
+
+      const repacks = filterDownloadableRepacks(
+        event.result.repacks,
+        multipartHosterDownloads
+      );
+
+      if (repacks.length === 0) return;
+
+      setSourceRepacks((current) => appendSourceRepacks(current, repacks));
+    });
+  }, [multipartHosterDownloads]);
+
   useEffect(() => {
     if (!isSearching && refocusToggleRef.current) {
       refocusToggleRef.current = false;
@@ -100,9 +122,6 @@ export function SourceRepacksSection({
 
   if (!availableProviderIds?.length) return null;
 
-  const multipartHosterDownloads = isFeatureEnabled(
-    Feature.MultipartHosterDownloads
-  );
   const requestObjectId = game?.objectId ?? objectId;
   const requestShop = game?.shop ?? shop;
   const requestTitle = game?.title ?? gameTitle;
@@ -184,6 +203,7 @@ export function SourceRepacksSection({
 
   const handleCancel = () => {
     cancelSearch();
+    setSourceRepacks([]);
     setIsSearching(false);
     setSearchPhase("idle");
     setIsExpanded(false);

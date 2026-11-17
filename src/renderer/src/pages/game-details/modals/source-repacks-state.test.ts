@@ -4,7 +4,7 @@ import type { SourceGameRepack, SourceSearchResult } from "@types";
 
 import * as stateModule from "./source-repacks-state.js";
 
-const { getSourceSearchOutcome } = stateModule;
+const { appendSourceRepacks, getSourceSearchOutcome } = stateModule;
 
 const repack = {
   id: "provider:steamrip:595afaff",
@@ -65,5 +65,23 @@ describe("source repacks state", () => {
       ]),
       "failed"
     );
+  });
+
+  it("appends streamed cards once and keeps the current state otherwise", () => {
+    const first = repack;
+    const second = {
+      ...repack,
+      id: "provider:steamgg:595afaff",
+      title: "Other game",
+    } as SourceGameRepack;
+
+    assert.deepEqual(appendSourceRepacks([], [first]), [first]);
+    assert.deepEqual(appendSourceRepacks([first], [first, second]), [
+      first,
+      second,
+    ]);
+
+    const current = [first];
+    assert.equal(appendSourceRepacks(current, [first]), current);
   });
 });
