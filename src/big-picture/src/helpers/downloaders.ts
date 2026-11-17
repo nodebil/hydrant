@@ -37,17 +37,6 @@ function isConfiguredDownloader(
   return Boolean(preferences?.[preferenceKey]);
 }
 
-function isSubscriptionSatisfiedForDownloader(
-  downloader: Downloader,
-  hasActiveSubscription?: boolean
-) {
-  if (downloader !== Downloader.VikingFile) {
-    return true;
-  }
-
-  return Boolean(hasActiveSubscription);
-}
-
 function isFeatureEnabledForDownloader(
   downloader: Downloader,
   enabledFeatures?: string[] | null
@@ -100,8 +89,7 @@ export function sortAvailableDownloaders(
 export function getDownloaderAvailabilityOptions(
   repack: Pick<GameRepack, "uris" | "unavailableUris">,
   preferences?: UserPreferences | null,
-  enabledFeatures?: string[] | null,
-  hasActiveSubscription?: boolean
+  enabledFeatures?: string[] | null
 ) {
   const unavailableUrisSet = new Set(repack.unavailableUris ?? []);
   const downloaderMap = new Map<
@@ -156,9 +144,7 @@ export function getDownloaderAvailabilityOptions(
       const status = downloaderMap.get(downloader);
       const canHandle = status !== undefined;
       const hasAvailableUri = status?.hasAvailable ?? false;
-      const isConfigured =
-        isConfiguredDownloader(downloader, preferences) &&
-        isSubscriptionSatisfiedForDownloader(downloader, hasActiveSubscription);
+      const isConfigured = isConfiguredDownloader(downloader, preferences);
       const isAvailable = canHandle && hasAvailableUri && isConfigured;
 
       return {

@@ -86,7 +86,6 @@ export enum DownloadError {
   PremiumizeUnavailable = "download_error_premiumize_unavailable",
   AllDebridUnavailable = "download_error_alldebrid_unavailable",
   VikingFileQuotaExceeded = "download_error_vikingfile_quota_exceeded",
-  VikingFileSubscriptionRequired = "download_error_vikingfile_subscription_required",
   HosterUnlockLoginRequired = "download_error_hoster_unlock_login_required",
   HosterUnlockFileNotFound = "download_error_hoster_unlock_file_not_found",
   HosterUnlockUnavailable = "download_error_hoster_unlock_unavailable",

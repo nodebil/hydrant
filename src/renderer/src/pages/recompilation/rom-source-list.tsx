@@ -17,7 +17,6 @@ import {
   useDownload,
   useFeature,
   useToast,
-  useUserDetails,
 } from "@renderer/hooks";
 import type { Feature } from "@renderer/hooks/use-feature";
 import { levelDBService } from "@renderer/services/leveldb.service";
@@ -42,12 +41,10 @@ function RomSourceRow({
   gameTitle,
   downloadPath,
   onStarted,
-  hasActiveSubscription,
   isFeatureEnabled,
 }: Readonly<
   RomSourceListProps & {
     repack: GameRepack;
-    hasActiveSubscription: boolean;
     isFeatureEnabled: (feature: Feature) => boolean;
   }
 >) {
@@ -67,7 +64,6 @@ function RomSourceRow({
     const source = event.currentTarget;
     const downloadOptions = getDownloadOptions(repack, {
       userPreferences,
-      hasActiveSubscription,
       isFeatureEnabled,
     });
     const downloader = getDefaultDownloader(
@@ -148,7 +144,6 @@ export function RomSourceList(props: Readonly<RomSourceListProps>) {
   );
   const [isSourceFilterOpen, setIsSourceFilterOpen] = useState(false);
   const { isFeatureEnabled } = useFeature();
-  const { hasActiveSubscription } = useUserDetails();
 
   useEffect(() => {
     void levelDBService
@@ -243,7 +238,6 @@ export function RomSourceList(props: Readonly<RomSourceListProps>) {
           <RomSourceRow
             key={repack.id}
             repack={repack}
-            hasActiveSubscription={hasActiveSubscription}
             isFeatureEnabled={isFeatureEnabled}
             {...props}
           />

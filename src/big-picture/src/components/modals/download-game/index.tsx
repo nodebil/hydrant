@@ -50,7 +50,6 @@ import {
   useNavigationScreenActions,
   useBigPictureToast,
   useUserPreferences,
-  useUserDetails,
 } from "../../../hooks";
 import { useNavigationStore, useVirtualKeyboardStore } from "../../../stores";
 
@@ -1484,17 +1483,15 @@ function DownloadGameOptions({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { features } = useFeature();
   const userPreferences = useUserPreferences();
-  const { hasActiveSubscription } = useUserDetails();
   const isOptionsInteractionLocked = isSubmitting;
 
   const availableDownloaderOptions = useMemo(() => {
     return getDownloaderAvailabilityOptions(
       option,
       userPreferences,
-      features,
-      hasActiveSubscription
+      features
     ).filter((downloaderOption) => downloaderOption.isAvailable);
-  }, [features, option, userPreferences, hasActiveSubscription]);
+  }, [features, option, userPreferences]);
 
   const downloaderItems = useMemo(() => {
     return availableDownloaderOptions.map((downloaderOption) => ({
