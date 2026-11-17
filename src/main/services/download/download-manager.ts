@@ -73,6 +73,7 @@ import { PremiumizeClient } from "./premiumize";
 import { AllDebridClient } from "./all-debrid";
 import { getDebridRootFolderName, isZipDownloadUrl } from "./debrid-files";
 import { getRangeSizeForRequestBudget } from "./parallel-range-download";
+import { getHosterParallelRangeSize } from "./download-range-policy";
 import {
   DEFAULT_DOWNLOAD_USER_AGENT,
   JsHttpDownloader,
@@ -130,6 +131,7 @@ interface JsDownloadOptions {
   filename?: string;
   headers?: Record<string, string>;
   allowParallelRanges?: boolean;
+  parallelRangeSize?: number;
   parallelRangeConnections?: number;
   probeUnboundedRange?: boolean;
   totalSize?: number;
@@ -1793,12 +1795,15 @@ export class DownloadManager {
             (batch.provider === "torBox" ||
               (batch.provider === "realDebrid" &&
                 !isZipDownloadUrl(url, entry.filename))),
-      parallelRangeSize: torBoxParallel
-        ? getRangeSizeForRequestBudget(
-            entry.size ?? 0,
-            TORBOX_MAX_PARALLEL_RANGES
-          )
-        : undefined,
+      parallelRangeSize:
+        batch.provider === "hoster"
+          ? getHosterParallelRangeSize(batch.hosterDownload?.downloader)
+          : torBoxParallel
+            ? getRangeSizeForRequestBudget(
+                entry.size ?? 0,
+                TORBOX_MAX_PARALLEL_RANGES
+              )
+            : undefined,
       probeUnboundedRange: batch.provider === "realDebrid",
       parallelRangeConnections:
         batch.provider === "realDebrid"
@@ -3439,6 +3444,12 @@ export class DownloadManager {
 
     if (!options) {
       throw new Error("Failed to get download options for JS downloader");
+    }
+
+    if (options.parallelRangeSize === undefined) {
+      options.parallelRangeSize = getHosterParallelRangeSize(
+        download.downloader
+      );
     }
 
     if (!this.isCurrentStart(downloadId, myGeneration, signal)) {

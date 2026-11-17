@@ -136,6 +136,10 @@ function fixture() {
     "./types": downloaderTypes,
     "./download-completion": completion,
     "./download-parts": downloadParts,
+    "./download-range-policy": {
+      getHosterParallelRangeSize: (downloader: Downloader) =>
+        downloader === Downloader.VikingFile ? 1024 * 1024 * 1024 : undefined,
+    },
     "./multipart-hoster-feature": {
       assertMultipartHosterDownloadsEnabled: async () => {},
     },
