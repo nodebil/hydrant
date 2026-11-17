@@ -96,6 +96,25 @@ try {
 
   const report = [];
 
+  const collectRepacks = async (hits, ctx) => {
+    const repacks = [];
+
+    for (const hit of hits) {
+      const links = await steamggProvider.scrape(hit, ctx);
+      if (links.length === 0) continue;
+
+      repacks.push({
+        title: hit.title,
+        build: hit.build ?? null,
+        size: hit.size ?? null,
+        hosters: [...new Set(links.map((link) => link.hosterId))],
+        links: links.length,
+      });
+    }
+
+    return repacks;
+  };
+
   for (const game of games) {
     const requestId = "smoke-" + (game.appId ?? "no-appid");
     const request = {
@@ -113,20 +132,7 @@ try {
     };
 
     const hits = await steamggProvider.search(request, ctx);
-    const repacks = [];
-
-    for (const hit of hits) {
-      const links = await steamggProvider.scrape(hit, ctx);
-      if (links.length === 0) continue;
-
-      repacks.push({
-        title: hit.title,
-        build: hit.build ?? null,
-        size: hit.size ?? null,
-        hosters: [...new Set(links.map((link) => link.hosterId))],
-        links: links.length,
-      });
-    }
+    const repacks = await collectRepacks(hits, ctx);
 
     assert.ok(
       repacks.length >= (game.minRepacks ?? 1),
@@ -147,6 +153,58 @@ try {
     });
     console.log("SMOKE " + JSON.stringify(report[report.length - 1]));
   }
+
+  const feedRequest = {
+    requestId: "smoke-1245620-feed",
+    shop: "steam",
+    objectId: "1245620",
+    title: "ELDEN RING",
+    steamAppId: 1245620,
+  };
+  const feedRequests = [];
+  const feedFetch = async (input, init) => {
+    const href =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
+    const url = new URL(href);
+    feedRequests.push(url.pathname + url.search);
+
+    if (url.pathname.startsWith("/wp-json/")) {
+      throw new Error("smoke: simulated WordPress API failure");
+    }
+
+    return fetchPage(input, init);
+  };
+  const feedContext = {
+    signal: new AbortController().signal,
+    fetch: feedFetch,
+    logger,
+    requestId: feedRequest.requestId,
+  };
+  const feedHits = await steamggProvider.search(feedRequest, feedContext);
+  const feedRepacks = await collectRepacks(feedHits, feedContext);
+
+  assert.ok(
+    feedRequests.some((path) => path.startsWith("/wp-json/")),
+    "REST search was not tried"
+  );
+  assert.ok(
+    feedRequests.some((path) => path.startsWith("/feed/rss/")),
+    "RSS fallback was not tried"
+  );
+  assert.ok(feedRepacks.length >= 1, "RSS fallback resolved no repacks");
+
+  report.push({
+    game: feedRequest.title,
+    search: "rss-fallback",
+    requests: feedRequests,
+    hits: feedHits.length,
+    repacks: feedRepacks,
+  });
+  console.log("SMOKE " + JSON.stringify(report[report.length - 1]));
 
   console.log("RESULT " + JSON.stringify({ steamgg: "passed", report }));
 } finally {

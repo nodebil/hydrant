@@ -12,6 +12,7 @@ import {
   isConfidentMatch,
   scoreTitleMatch,
 } from "../../../shared/source-matching.js";
+import { fetchFeedEntries } from "../source-fetch/access-ladder.js";
 import { SourceFetchError } from "../source-fetch/errors.js";
 import { isHostAllowed, parseHttpUrl } from "../source-fetch/url-policy.js";
 import {
@@ -76,6 +77,32 @@ export const buildSteamGgSearchUrl = (title: string): string => {
   return url.toString();
 };
 
+export const buildSteamGgFeedUrl = (title: string): string => {
+  const url = new URL("/feed/rss/", STEAMGG_BASE_URL);
+  url.search = new URLSearchParams({ s: title }).toString();
+
+  return url.toString();
+};
+
+const toSteamGgHit = (
+  title: string,
+  url: string,
+  requestedTitle: string
+): ProviderSearchHit | undefined => {
+  const matchTitle = cleanTitle(title);
+  if (!isConfidentMatch(requestedTitle, matchTitle)) return undefined;
+
+  const build = extractBuild(title);
+
+  return {
+    providerId: "steamgg",
+    title,
+    url,
+    confidence: scoreTitleMatch(requestedTitle, matchTitle),
+    ...(build ? { build } : {}),
+  };
+};
+
 const readPost = (
   post: unknown
 ): { title: string; url: string } | undefined => {
@@ -136,18 +163,8 @@ export const parseSteamGgSearch = (
     seen.add(page.url);
     parsed += 1;
 
-    const matchTitle = cleanTitle(page.title);
-    if (!isConfidentMatch(requestedTitle, matchTitle)) continue;
-
-    const build = extractBuild(page.title);
-
-    hits.push({
-      providerId: "steamgg",
-      title: page.title,
-      url: page.url,
-      confidence: scoreTitleMatch(requestedTitle, matchTitle),
-      ...(build ? { build } : {}),
-    });
+    const hit = toSteamGgHit(page.title, page.url, requestedTitle);
+    if (hit) hits.push(hit);
   }
 
   if (parsed === 0 && posts.length > 0) {
@@ -214,6 +231,27 @@ export const parseSteamGgGame = (
   return { links };
 };
 
+export const searchSteamGgFeed = async (
+  requestedTitle: string,
+  ctx: ProviderContext
+): Promise<ProviderSearchHit[]> => {
+  const entries = await fetchFeedEntries(
+    buildSteamGgFeedUrl(requestedTitle),
+    ctx
+  );
+  const hits: ProviderSearchHit[] = [];
+
+  for (const entry of entries) {
+    const parsed = parseHttpUrl(entry.url);
+    if (!parsed || !isHostAllowed(parsed.hostname, [STEAMGG_HOST])) continue;
+
+    const hit = toSteamGgHit(entry.title, parsed.toString(), requestedTitle);
+    if (hit) hits.push(hit);
+  }
+
+  return hits;
+};
+
 export const steamggProvider: ProviderDefinition = {
   id: "steamgg",
   name: "SteamGG",
@@ -228,10 +266,23 @@ export const steamggProvider: ProviderDefinition = {
   ): Promise<ProviderSearchHit[]> {
     ctx.signal.throwIfAborted();
 
-    const response = await ctx.fetch(buildSteamGgSearchUrl(request.title), {
-      signal: ctx.signal,
-    });
-    const hits = parseSteamGgSearch(await response.text(), request.title);
+    let hits: ProviderSearchHit[];
+
+    try {
+      const response = await ctx.fetch(buildSteamGgSearchUrl(request.title), {
+        signal: ctx.signal,
+      });
+      hits = parseSteamGgSearch(await response.text(), request.title);
+    } catch (error) {
+      if (ctx.signal.aborted) throw error;
+
+      try {
+        hits = await searchSteamGgFeed(request.title, ctx);
+      } catch (feedError) {
+        if (ctx.signal.aborted) throw feedError;
+        throw error;
+      }
+    }
 
     // Title matching is not enough for same-name remakes; scrape verifies this appid.
     return request.steamAppId

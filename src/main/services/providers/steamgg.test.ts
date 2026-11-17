@@ -9,8 +9,12 @@ import type {
 import { Downloader } from "../../../shared/constants.js";
 import { getDownloadersForUris } from "../../../shared/downloader-mapping.js";
 import { toSyntheticRepack } from "../../../shared/source-repack.js";
-import { isSourceFetchError } from "../source-fetch/errors.js";
 import {
+  SourceFetchError,
+  isSourceFetchError,
+} from "../source-fetch/errors.js";
+import {
+  buildSteamGgFeedUrl,
   buildSteamGgSearchUrl,
   parseSteamGgGame,
   parseSteamGgSearch,
@@ -21,6 +25,21 @@ const fixture = (name: string) =>
   readFileSync(new URL(`./__fixtures__/${name}`, import.meta.url), "utf8");
 
 const gamePageUrl = "https://steamgg.net/elden-ring-deluxe-edition-download/";
+
+const steamGgFeed = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>ELDEN RING &#8211; SteamGG</title>
+    <item>
+      <title>Elden Ring Deluxe Edition Free Download [Tarnished Pack/All DLCs/Build-23850278]</title>
+      <link>${gamePageUrl}</link>
+    </item>
+    <item>
+      <title>ELDEN RING NIGHTREIGN Free Download [v1.03.03+All DLCs+Online]</title>
+      <link>https://steamgg.net/elden-ring-online/</link>
+    </item>
+  </channel>
+</rss>`;
 
 const isParseError = (error: unknown) =>
   isSourceFetchError(error) && error.code === "PARSE";
@@ -282,6 +301,90 @@ describe("steamgg provider", () => {
     assert.match(fake.urls[0], /search=ELDEN\+RING/);
     assert.equal(hits.length, 1);
     assert.equal(hits[0].steamAppId, 1245620);
+  });
+
+  it("falls back to the RSS search when the WordPress API fails", async () => {
+    const request = searchRequest("steamgg-feed");
+    const feedUrl = buildSteamGgFeedUrl(request.title);
+    const fake = createFetch({ [feedUrl]: steamGgFeed });
+    const hits = await steamggProvider.search(request, {
+      ...providerContext("steamgg-feed"),
+      fetch: fake.fetch,
+    });
+
+    assert.deepEqual(fake.urls, [
+      buildSteamGgSearchUrl(request.title),
+      feedUrl,
+    ]);
+    assert.equal(hits.length, 1);
+    assert.equal(hits[0].url, gamePageUrl);
+    assert.equal(hits[0].build, "23850278");
+    assert.equal(hits[0].steamAppId, 1245620);
+  });
+
+  it("skips off-host RSS search results", async () => {
+    const request = searchRequest("steamgg-feed-off-host");
+    const feedUrl = buildSteamGgFeedUrl(request.title);
+    const fake = createFetch({
+      [feedUrl]: steamGgFeed.replace(
+        gamePageUrl,
+        "https://steamgg.net.evil.test/game/"
+      ),
+    });
+    const hits = await steamggProvider.search(request, {
+      ...providerContext("steamgg-feed-off-host"),
+      fetch: fake.fetch,
+    });
+
+    assert.deepEqual(hits, []);
+  });
+
+  it("keeps the REST error when the RSS fallback also fails", async () => {
+    const fetchImpl = (async (input: Parameters<typeof fetch>[0]) => {
+      const url = requestUrl(input);
+
+      if (url.includes("/wp-json/")) {
+        throw new SourceFetchError("BLOCKED", "SteamGG blocked the request.");
+      }
+
+      return new Response("Not found", {
+        status: 404,
+        headers: { "content-type": "text/html" },
+      });
+    }) as typeof fetch;
+
+    await assert.rejects(
+      steamggProvider.search(searchRequest("steamgg-feed-missing"), {
+        ...providerContext("steamgg-feed-missing"),
+        fetch: fetchImpl,
+      }),
+      (error: unknown) => isSourceFetchError(error) && error.code === "BLOCKED"
+    );
+  });
+
+  it("stops on cancellation during the RSS fallback", async () => {
+    const controller = new AbortController();
+    let attempts = 0;
+    const fetchImpl = (async () => {
+      attempts += 1;
+
+      if (attempts === 1) {
+        throw new SourceFetchError("BLOCKED", "SteamGG blocked the request.");
+      }
+
+      controller.abort();
+      throw new SourceFetchError("CANCELLED", "The request was cancelled.");
+    }) as typeof fetch;
+
+    await assert.rejects(
+      steamggProvider.search(searchRequest("steamgg-feed-cancel"), {
+        ...providerContext("steamgg-feed-cancel"),
+        signal: controller.signal,
+        fetch: fetchImpl,
+      }),
+      (error: unknown) =>
+        isSourceFetchError(error) && error.code === "CANCELLED"
+    );
   });
 
   it("scrapes the hit page and keeps the provider page as referer", async () => {

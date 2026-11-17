@@ -117,7 +117,7 @@ const cancelledError = () =>
 const timedOutError = () =>
   new SourceFetchError("TIMEOUT", "The source request timed out.");
 
-const statusError = (
+export const statusError = (
   status: number,
   retryAfterMs: number | null
 ): SourceFetchError => {
