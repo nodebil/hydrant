@@ -41,6 +41,8 @@ import {
   FileKeeperApi,
   BuzzheavierApi,
   FileditchApi,
+  AkiraboxApi,
+  AKIRABOX_REFERER,
 } from "../hosters";
 import { TorrentService } from "../torrent-service";
 import {
@@ -1717,6 +1719,8 @@ export class DownloadManager {
         return this.getBuzzheavierDownloadOptions(download, resumingFilename);
       case Downloader.Fileditch:
         return this.getFileditchDownloadOptions(download, resumingFilename);
+      case Downloader.Akirabox:
+        return this.getAkiraboxDownloadOptions(download, resumingFilename);
       case Downloader.ArchiveOrg:
         return this.getArchiveOrgDownloadOptions(download, resumingFilename);
       default:
@@ -2442,6 +2446,27 @@ export class DownloadManager {
       downloadUrl,
       download.downloadPath,
       filename
+    );
+  }
+
+  private static async getAkiraboxDownloadOptions(
+    download: Download,
+    resumingFilename?: string
+  ) {
+    logger.log(
+      `[DownloadManager] Processing Akirabox download for URI: ${download.uri}`
+    );
+    const downloadUrl = await AkiraboxApi.getDownloadUrl(download.uri);
+    const filename = this.resolveFilename(
+      resumingFilename,
+      download.uri,
+      downloadUrl
+    );
+    return this.buildDownloadOptions(
+      downloadUrl,
+      download.downloadPath,
+      filename,
+      { Referer: AKIRABOX_REFERER }
     );
   }
 

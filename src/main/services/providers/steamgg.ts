@@ -30,6 +30,11 @@ const SEARCH_PAGE_SIZE = 100;
 const HOSTERS = [
   { hosterId: "gofile", label: "Gofile", hosts: ["gofile.io"] },
   { hosterId: "datanodes", label: "Datanodes", hosts: ["datanodes.to"] },
+  {
+    hosterId: "akirabox",
+    label: "Akirabox",
+    hosts: ["akirabox.to", "akirabox.com"],
+  },
   { hosterId: "pixeldrain", label: "PixelDrain", hosts: ["pixeldrain.com"] },
   {
     hosterId: "vikingfile",

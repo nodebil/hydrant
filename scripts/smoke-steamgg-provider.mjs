@@ -20,22 +20,29 @@ const games = [
   {
     title: "ELDEN RING",
     appId: 1245620,
-    expect: ["gofile", "datanodes", "filekeeper"],
+    expect: ["gofile", "datanodes", "akirabox", "filekeeper"],
   },
   {
     title: "Marvel's Spider-Man Remastered",
     appId: 1817070,
-    expect: ["datanodes", "filekeeper"],
+    expect: ["datanodes", "akirabox", "filekeeper"],
   },
   {
     title: "Dead Space",
     appId: 1693980,
     minRepacks: 2,
-    expect: ["pixeldrain", "datanodes", "rootz", "vikingfile", "buzzheavier"],
+    expect: [
+      "pixeldrain",
+      "datanodes",
+      "akirabox",
+      "rootz",
+      "vikingfile",
+      "buzzheavier",
+    ],
   },
   {
     title: "Prison Architect",
-    expect: ["pixeldrain", "buzzheavier"],
+    expect: ["pixeldrain", "akirabox", "buzzheavier"],
   },
 ];
 
@@ -131,11 +138,6 @@ try {
     for (const hoster of game.expect) {
       assert.ok(hosters.includes(hoster), game.title + " is missing " + hoster);
     }
-
-    assert.ok(
-      hosters.every((hoster) => hoster !== "akirabox"),
-      game.title + " kept an unsupported Akirabox link"
-    );
 
     report.push({
       game: game.title,

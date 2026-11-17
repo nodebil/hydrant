@@ -35,6 +35,20 @@ describe("downloader mapping", () => {
     );
   });
 
+  it("maps every Akirabox host", () => {
+    for (const uri of [
+      "https://akirabox.to/b5OzdkewO3B8/file",
+      "https://akirabox.com/b5OzdkewO3B8/file",
+    ]) {
+      assert.deepEqual(getDownloadersForUri(uri), [Downloader.Akirabox]);
+    }
+
+    assert.deepEqual(
+      getDownloadersForUri("https://akirabox.to.evil.test/b5OzdkewO3B8/file"),
+      []
+    );
+  });
+
   it("maps every Buzzheavier domain", () => {
     for (const uri of [
       "https://buzzheavier.com/abc",

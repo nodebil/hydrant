@@ -178,13 +178,14 @@ describe("steamgg provider", () => {
 
     assert.deepEqual(
       page.links.map((link) => link.hosterId),
-      ["gofile", "datanodes", "filekeeper"]
+      ["gofile", "datanodes", "akirabox", "filekeeper"]
     );
     assert.deepEqual(
       page.links.map((link) => link.url),
       [
         "https://gofile.io/d/2Vv1FdiG",
         "https://datanodes.to/8klfc4vk981c",
+        "https://akirabox.com/7d5GLZPej3xR/file",
         "https://filekeeper.net/ootrrmoqg8hn/ELDEN_RING_Tarnished_-_SteamGG.NET.zip",
       ]
     );
@@ -257,6 +258,7 @@ describe("steamgg provider", () => {
     assert.deepEqual(getDownloadersForUris(repack.uris), [
       Downloader.Gofile,
       Downloader.Datanodes,
+      Downloader.Akirabox,
       Downloader.FileKeeper,
     ]);
     assert.equal(repack.fileSize, null);
@@ -300,7 +302,7 @@ describe("steamgg provider", () => {
     });
 
     assert.deepEqual(fake.urls, [gamePageUrl]);
-    assert.equal(links.length, 3);
+    assert.equal(links.length, 4);
     assert.ok(links.every((link) => link.referer === gamePageUrl));
   });
 });

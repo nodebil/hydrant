@@ -8,3 +8,4 @@ export * from "./rootz";
 export * from "./filekeeper";
 export * from "./buzzheavier";
 export * from "./fileditch";
+export * from "./akirabox";

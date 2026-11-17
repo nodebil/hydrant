@@ -42,6 +42,12 @@ export const getDownloadersForUri = (uri: string) => {
   ) {
     return [Downloader.Fileditch];
   }
+  if (
+    uri.startsWith("https://akirabox.to/") ||
+    uri.startsWith("https://akirabox.com/")
+  ) {
+    return [Downloader.Akirabox];
+  }
   if (isArchiveOrgFileUri(uri)) {
     return [Downloader.ArchiveOrg];
   }
