@@ -1,0 +1,85 @@
+{
+  "success": true,
+  "data": {
+    "id": "69c3dd346982eb84d25b4085",
+    "appid": "1245620",
+    "title": "ELDEN RING",
+    "slug": "elden-ring",
+    "version": "Build 25827938",
+    "container": {
+      "success": true,
+      "data": {
+        "id": "679700428863",
+        "name": "Container for 1245620 - 679700428863",
+        "size_bytes": 72477573120,
+        "sizeHuman": "67.5GB",
+        "statusCheckPending": true,
+        "mirrors": [
+          {
+            "id": "034052676721",
+            "name": "vikingfile.com",
+            "links": [
+              {
+                "id": "1",
+                "url": "https://gamebounty.world/api/dl/elden-ring/aHR0cHM6Ly92aWtpbmdmaWxlLmNvbS9mL0FFRmY4UWxkNlo",
+                "status": "unknown"
+              },
+              {
+                "id": "2",
+                "url": "https://gamebounty.world/api/dl/elden-ring/aHR0cHM6Ly92aWtpbmdmaWxlLmNvbS9mL01iMG5HbnBlN00",
+                "status": "unknown"
+              },
+              {
+                "id": "3",
+                "url": "https://gamebounty.world/api/dl/elden-ring/aHR0cHM6Ly92aWtpbmdmaWxlLmNvbS9mL2hqbkpGb2FDdHQ",
+                "status": "unknown"
+              }
+            ]
+          },
+          {
+            "id": "515896556659",
+            "name": "itsfileditchfiles.st",
+            "links": [
+              {
+                "id": "4",
+                "url": "https://gamebounty.world/api/dl/elden-ring/aHR0cHM6Ly9pdHNmaWxlZGl0Y2hmaWxlcy5zdC9iYWxwaGEzNi8wZjgyNGY1MDFlN2ZlNzk5NDg1NC9FTERFTiUyMFJJTkcucGFydDMucmFy",
+                "status": "unknown"
+              },
+              {
+                "id": "5",
+                "url": "https://gamebounty.world/api/dl/elden-ring/aHR0cHM6Ly9pdHNmaWxlZGl0Y2hmaWxlcy5zdC9iYWxwaGEzNi9mN2U2MWFmZWYzNWQ3NjZkNDBmYS9FTERFTiUyMFJJTkcucGFydDIucmFy",
+                "status": "unknown"
+              },
+              {
+                "id": "6",
+                "url": "https://gamebounty.world/api/dl/elden-ring/aHR0cHM6Ly9pdHNmaWxlZGl0Y2hmaWxlcy5zdC9iYWxwaGEzNi9iOWNmNWU5ZDJiMjYxNzhkODViOC9FTERFTiUyMFJJTkcucGFydDEucmFy",
+                "status": "unknown"
+              }
+            ]
+          },
+          {
+            "id": "302609646695",
+            "name": "filesyard.com",
+            "links": [
+              {
+                "id": "7",
+                "url": "https://gamebounty.world/api/dl/elden-ring/aHR0cHM6Ly9maWxlc3lhcmQuY29tL2YvUFZhRDZpY3hHOA",
+                "status": "unknown"
+              },
+              {
+                "id": "8",
+                "url": "https://gamebounty.world/api/dl/elden-ring/aHR0cHM6Ly9maWxlc3lhcmQuY29tL2YveGloWHBwc1V2UA",
+                "status": "unknown"
+              },
+              {
+                "id": "9",
+                "url": "https://gamebounty.world/api/dl/elden-ring/aHR0cHM6Ly9maWxlc3lhcmQuY29tL2YvTUdJVVphS0lzbA",
+                "status": "unknown"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

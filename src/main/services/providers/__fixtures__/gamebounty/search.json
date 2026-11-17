@@ -1,0 +1,57 @@
+{
+  "success": true,
+  "data": {
+    "query": "elden ring",
+    "page": 1,
+    "size": 100,
+    "total": 6,
+    "results": [
+      {
+        "title": "ELDEN RING",
+        "slug": "elden-ring",
+        "appid": "1245620",
+        "version": "Build 25827938",
+        "size_human": "67.5GB",
+        "mirror_count": 3
+      },
+      {
+        "title": "ELDEN RING NIGHTREIGN",
+        "slug": "elden-ring-nightreign",
+        "appid": "2622380",
+        "version": "Build 22818764",
+        "size_human": "26.5GB",
+        "mirror_count": 4
+      },
+      {
+        "title": "Dead Space",
+        "slug": "dead-space",
+        "appid": "1693980",
+        "version": "Build 10602756",
+        "size_human": "34.4GB",
+        "mirror_count": 3
+      },
+      {
+        "title": "Dead Space (2008)",
+        "slug": "dead-space-2008",
+        "appid": "17470",
+        "version": "Build 252137",
+        "size_human": "7.9GB",
+        "mirror_count": 3
+      },
+      {
+        "title": "Marvel’s Spider-Man Remastered",
+        "slug": "marvel-s-spider-man-remastered",
+        "appid": "1817070",
+        "version": "Build 23986256",
+        "size_human": "69.4 GB",
+        "mirror_count": 2
+      },
+      {
+        "title": "Broken result",
+        "slug": "../elden-ring",
+        "appid": "1245620",
+        "version": "Build 1"
+      }
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "data": {
+    "appid": "4335460",
+    "title": "BOXROOM",
+    "slug": "boxroom",
+    "version": "Build 26564418",
+    "container": {
+      "success": true,
+      "data": {
+        "sizeHuman": "2.4GB",
+        "mirrors": []
+      }
+    }
+  }
+}

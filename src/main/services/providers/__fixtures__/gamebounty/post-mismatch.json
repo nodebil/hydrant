@@ -1,0 +1,26 @@
+{
+  "success": true,
+  "data": {
+    "appid": "17470",
+    "title": "Dead Space (2008)",
+    "slug": "dead-space-2008",
+    "version": "Build 252137",
+    "container": {
+      "success": true,
+      "data": {
+        "sizeHuman": "7.9GB",
+        "mirrors": [
+          {
+            "name": "gofile.io",
+            "links": [
+              {
+                "url": "https://gamebounty.world/api/dl/dead-space-2008/aHR0cHM6Ly9nb2ZpbGUuaW8vZC9nWnNveGpJaA",
+                "status": "unknown"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

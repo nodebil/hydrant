@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "data": {
+    "query": "elden ring",
+    "page": 1,
+    "size": 100,
+    "total": 0,
+    "results": []
+  }
+}
