@@ -14,6 +14,7 @@ import type {
 } from "@types";
 import { DEFAULT_SOURCE_PREFERENCES } from "../../../shared/source-providers.js";
 import { toSyntheticRepack } from "../../../shared/source-repack.js";
+import { mapWithConcurrency } from "../cloud-save/map-with-concurrency.js";
 import {
   rankSourceCandidates,
   type SourceCandidate,
@@ -41,10 +42,18 @@ export interface SearchProvidersOptions {
   preferences?: SourcePreferences;
   policy?: SelectionPolicy;
   onCandidateSelected?: (candidate: RankedSourceCandidate) => void;
+  providerTimeoutMs?: number;
+  concurrency?: number;
 }
+
+const DEFAULT_PROVIDER_TIMEOUT_MS = 60_000;
+const DEFAULT_PROVIDER_CONCURRENCY = 2;
 
 const cancelled = () =>
   new SourceFetchError("CANCELLED", "Source provider search cancelled");
+
+const timeoutError = () =>
+  new SourceFetchError("TIMEOUT", "Source provider search timed out");
 
 const ensureActive = (signal: AbortSignal): void => {
   if (signal.aborted) throw cancelled();
@@ -69,13 +78,21 @@ const getStatus = (code: SourceErrorCode): SourceSearchStatus => {
   return "error";
 };
 
+const getRepackLinkKey = (repack: SourceGameRepack): string =>
+  [
+    [...repack.uris].sort().join("\n"),
+    ...(repack.uriGroups ?? [])
+      .map((group) => [...group].sort().join("\n"))
+      .sort(),
+  ].join("\u0000");
+
 const runProvider = async (
   provider: ProviderDefinition,
   request: SourceSearchRequest,
   options: SearchProvidersOptions,
   candidates: SourceCandidate[]
 ): Promise<SourceSearchResult> => {
-  const { signal, logger, onStatus } = options;
+  const { logger, onStatus } = options;
   const startedAt = performance.now();
   const host = parseHttpUrl(provider.baseUrl)?.hostname;
   const technique: SourceTechnique = provider.requiresBrowser
@@ -133,9 +150,26 @@ const runProvider = async (
   );
   emit("searching");
 
-  try {
-    ensureActive(signal);
+  const controller = new AbortController();
+  const signal = controller.signal;
+  const onRequestAbort = () => controller.abort();
 
+  if (options.signal.aborted) controller.abort();
+  else options.signal.addEventListener("abort", onRequestAbort, { once: true });
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => {
+        reject(timeoutError());
+        controller.abort();
+      },
+      Math.max(1, options.providerTimeoutMs ?? DEFAULT_PROVIDER_TIMEOUT_MS)
+    );
+  });
+
+  const search = async () => {
     const client = createSourceHttpClient({
       timeoutMs: provider.timeoutMs,
       ...(host ? { allowedHosts: [host] } : {}),
@@ -151,13 +185,15 @@ const runProvider = async (
     ensureActive(signal);
 
     if (hits.length === 0) {
-      emit("done", { count: 0 });
-      return finish({ status: "not-found", hits: [], repacks: [] });
+      return { hits, repacks: [] as SourceGameRepack[] };
     }
 
     emit("scraping", { count: hits.length });
 
     const repacks: SourceGameRepack[] = [];
+    const repackIds = new Set<string>();
+    const repackLinks = new Set<string>();
+
     for (const hit of hits) {
       const links = await provider.scrape(hit, context);
       ensureActive(signal);
@@ -165,6 +201,12 @@ const runProvider = async (
       const repack = toSyntheticRepack(provider, hit, links);
       if (repack.uris.length === 0 && !repack.uriGroups?.length) continue;
 
+      // First card wins: one game returned twice must not duplicate cards.
+      const linkKey = getRepackLinkKey(repack);
+      if (repackIds.has(repack.id) || repackLinks.has(linkKey)) continue;
+
+      repackIds.add(repack.id);
+      repackLinks.add(linkKey);
       repacks.push(repack);
       candidates.push({
         providerId: provider.id,
@@ -179,6 +221,14 @@ const runProvider = async (
       });
     }
 
+    return { hits, repacks };
+  };
+
+  try {
+    ensureActive(signal);
+
+    const { hits, repacks } = await Promise.race([search(), deadline]);
+
     emit("done", { count: repacks.length });
 
     return finish({
@@ -189,6 +239,7 @@ const runProvider = async (
   } catch (error) {
     const errorCode = getErrorCode(error);
     emit("error", { errorCode });
+    candidates.length = 0;
 
     return finish(
       {
@@ -199,6 +250,9 @@ const runProvider = async (
       },
       error
     );
+  } finally {
+    if (timer) clearTimeout(timer);
+    options.signal.removeEventListener("abort", onRequestAbort);
   }
 };
 
@@ -229,13 +283,15 @@ export const searchProviders = async (
   const preferences = options.preferences ?? DEFAULT_SOURCE_PREFERENCES;
   const policy = options.policy ?? manualSelectionPolicy;
 
-  const runs = await Promise.all(
-    providers.map(async (provider) => {
+  const runs = await mapWithConcurrency(
+    providers,
+    Math.max(1, options.concurrency ?? DEFAULT_PROVIDER_CONCURRENCY),
+    async (provider) => {
       const candidates: SourceCandidate[] = [];
       const result = await runProvider(provider, request, options, candidates);
 
       return { result, candidates };
-    })
+    }
   );
 
   const ranked = rankSourceCandidates(

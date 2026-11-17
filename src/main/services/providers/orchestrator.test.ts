@@ -397,4 +397,175 @@ describe("source provider orchestrator", () => {
     assert.equal(selected.length, 1);
     assert.match(selected[0].repack.uris[0], /high$/);
   });
+
+  it("times out a slow provider without blocking the others", async () => {
+    let aborted = false;
+    const slow = makeProvider("orchestrator-slow", {
+      async search(_request, ctx) {
+        ctx.signal.addEventListener("abort", () => {
+          aborted = true;
+        });
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        return [hit];
+      },
+    });
+    const fast = makeProvider("orchestrator-fast");
+    registerProvider(slow);
+    registerProvider(fast);
+
+    const statuses: SourceProviderStatusEvent[] = [];
+    const results = await searchProviders(makeRequest([slow.id, fast.id]), {
+      signal: new AbortController().signal,
+      logger,
+      providerTimeoutMs: 25,
+      onStatus: (event) => statuses.push(event),
+    });
+
+    assert.deepEqual(
+      results.map((result) => result.providerId),
+      [slow.id, fast.id]
+    );
+    assert.equal(results[0].status, "timeout");
+    assert.equal(results[0].errorCode, "TIMEOUT");
+    assert.equal(results[1].status, "ok");
+    assert.equal(results[1].repacks.length, 1);
+    assert.equal(aborted, true);
+
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    assert.deepEqual(
+      statuses
+        .filter((status) => status.providerId === slow.id)
+        .map((status) => status.phase),
+      ["searching", "error"]
+    );
+    assert.equal(results[0].repacks.length, 0);
+  });
+
+  it("caps how many providers search at once", async () => {
+    let active = 0;
+    let peak = 0;
+    const started: string[] = [];
+    const waiters: (() => void)[] = [];
+    const makeBlockingProvider = (id: string) =>
+      makeProvider(id, {
+        async search() {
+          started.push(id);
+          active += 1;
+          peak = Math.max(peak, active);
+          await new Promise<void>((resolve) => waiters.push(resolve));
+          active -= 1;
+          return [{ ...hit, providerId: id }];
+        },
+      });
+    const providers = [
+      makeBlockingProvider("orchestrator-cap-a"),
+      makeBlockingProvider("orchestrator-cap-b"),
+      makeBlockingProvider("orchestrator-cap-c"),
+    ];
+    for (const provider of providers) registerProvider(provider);
+
+    const pending = searchProviders(
+      makeRequest(providers.map((provider) => provider.id)),
+      {
+        signal: new AbortController().signal,
+        logger,
+        concurrency: 2,
+      }
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(started, ["orchestrator-cap-a", "orchestrator-cap-b"]);
+
+    waiters.shift()?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(started, [
+      "orchestrator-cap-a",
+      "orchestrator-cap-b",
+      "orchestrator-cap-c",
+    ]);
+
+    for (const release of waiters.splice(0)) release();
+
+    const results = await pending;
+    assert.equal(peak, 2);
+    assert.deepEqual(
+      results.map((result) => result.providerId),
+      providers.map((provider) => provider.id)
+    );
+    assert.ok(results.every((result) => result.status === "ok"));
+  });
+
+  it("drops candidates from a provider that fails partway", async () => {
+    let scrapes = 0;
+    const provider = makeProvider("orchestrator-partial", {
+      async search() {
+        return [
+          {
+            ...hit,
+            providerId: "orchestrator-partial",
+            url: "https://provider.test/game/1",
+          },
+          {
+            ...hit,
+            providerId: "orchestrator-partial",
+            url: "https://provider.test/game/2",
+          },
+        ];
+      },
+      async scrape() {
+        scrapes += 1;
+        if (scrapes > 1) throw new SourceFetchError("TIMEOUT", "Too slow");
+        return [link];
+      },
+    });
+    registerProvider(provider);
+
+    let rankedCandidates = -1;
+    const [result] = await searchProviders(makeRequest([provider.id]), {
+      signal: new AbortController().signal,
+      logger,
+      policy: {
+        id: "auto",
+        select: (candidates) => {
+          rankedCandidates = candidates.length;
+          return candidates[0] ?? null;
+        },
+      },
+    });
+
+    assert.equal(result.status, "timeout");
+    assert.deepEqual(result.repacks, []);
+    assert.equal(rankedCandidates, 0);
+  });
+
+  it("dedupes repeated cards from one provider", async () => {
+    const provider = makeProvider("orchestrator-dedupe", {
+      async search() {
+        return [
+          {
+            ...hit,
+            providerId: "orchestrator-dedupe",
+            url: "https://provider.test/game/a",
+          },
+          {
+            ...hit,
+            providerId: "orchestrator-dedupe",
+            url: "https://provider.test/game/b",
+          },
+          {
+            ...hit,
+            providerId: "orchestrator-dedupe",
+            url: "https://provider.test/game/a",
+          },
+        ];
+      },
+    });
+    registerProvider(provider);
+
+    const [result] = await search(makeRequest([provider.id]));
+
+    assert.equal(result.hits.length, 3);
+    assert.equal(result.repacks.length, 1);
+  });
 });
