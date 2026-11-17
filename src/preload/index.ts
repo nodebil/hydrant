@@ -29,6 +29,7 @@ import type {
   ProtonVersion,
   TorrentFilesResponse,
   DownloadLayoutState,
+  HydrantPreferences,
   EmulatorSystem,
   EmulatorBinary,
   EmulatorInstallProgress,
@@ -130,6 +131,10 @@ import {
   SOURCE_PROVIDER_SEARCH_CHANNEL,
   SOURCE_PROVIDER_STATUS_CHANNEL,
 } from "../shared/source-providers";
+import {
+  HYDRANT_GET_PREFERENCES_CHANNEL,
+  HYDRANT_UPDATE_PREFERENCES_CHANNEL,
+} from "../shared/hydrant-preferences";
 import type { AxiosProgressEvent } from "axios";
 
 const fileExplorerApi = {
@@ -558,6 +563,14 @@ contextBridge.exposeInMainWorld("electron", {
     return () =>
       ipcRenderer.removeListener(SOURCE_PROVIDER_RESULT_CHANNEL, listener);
   },
+
+  /* Hydrant preferences */
+  getHydrantPreferences: (): Promise<HydrantPreferences> =>
+    ipcRenderer.invoke(HYDRANT_GET_PREFERENCES_CHANNEL),
+  updateHydrantPreferences: (
+    preferences: Partial<HydrantPreferences>
+  ): Promise<HydrantPreferences> =>
+    ipcRenderer.invoke(HYDRANT_UPDATE_PREFERENCES_CHANNEL, preferences),
 
   /* Catalogue */
   getGameShopDetails: (

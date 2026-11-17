@@ -153,6 +153,7 @@ import type {
   SourceProviderId,
   SourceSearchRequest,
   SourceSearchResult,
+  HydrantPreferences,
 } from "@types";
 import type { AxiosProgressEvent } from "axios";
 
@@ -390,6 +391,12 @@ declare global {
     onSourceProviderResult: (
       cb: (event: SourceProviderResultEvent) => void
     ) => () => Electron.IpcRenderer;
+
+    /* Hydrant preferences */
+    getHydrantPreferences: () => Promise<HydrantPreferences>;
+    updateHydrantPreferences: (
+      preferences: Partial<HydrantPreferences>
+    ) => Promise<HydrantPreferences>;
 
     /* Catalogue */
     getGameShopDetails: (

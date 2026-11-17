@@ -2114,7 +2114,14 @@
     "enable_leaderboard_slam": "Show an animation for big moments",
     "enable_leaderboard_slam_hint": "Top 3, taking the lead or making the top 100.",
     "enable_leaderboard_drop_notifications": "Also notify me when I drop",
-    "enable_leaderboard_drop_notifications_hint": "When off, drops only show on the notifications page."
+    "enable_leaderboard_drop_notifications_hint": "When off, drops only show on the notifications page.",
+    "hydrant": "Hydrant",
+    "hydrant_description": "These tweaks change how Hydrant behaves. Turn one off to get the original Hydra behavior back.",
+    "hydrant_tweaks": "Tweaks",
+    "hydrant_steam_metadata": "Show Steam reviews, player count, and store link",
+    "hydrant_hide_leaderboards": "Hide the Leaderboards tab and page",
+    "hydrant_hide_ranking_card": "Hide the ranking card on game pages",
+    "hydrant_hide_feedback_widget": "Hide the Send Feedback widget"
   },
   "notifications": {
     "download_complete": "Download complete",

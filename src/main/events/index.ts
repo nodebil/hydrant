@@ -36,6 +36,7 @@ import "./retroarch";
 import "./epic";
 import "./screenshot-input";
 import "./source-providers";
+import "./hydrant-preferences";
 
 ipcMain.handle("ping", () => "pong");
 ipcMain.handle("getVersion", () => appVersion);

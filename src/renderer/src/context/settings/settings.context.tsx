@@ -17,6 +17,7 @@ export type SettingsCategoryId =
   | "screenshots"
   | "integrations"
   | "compatibility"
+  | "hydrant"
   | "account_privacy"
   | "big_picture"
   | "emulation";
@@ -40,6 +41,7 @@ const isSettingsCategoryId = (value: string): value is SettingsCategoryId => {
     "screenshots",
     "integrations",
     "compatibility",
+    "hydrant",
     "account_privacy",
     "big_picture",
     "emulation",

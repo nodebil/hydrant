@@ -17,7 +17,7 @@ import {
   VideoIcon,
   ShieldCheckIcon,
 } from "@primer/octicons-react";
-import { Camera, Gamepad2, Wrench } from "lucide-react";
+import { Camera, Gamepad2, Sparkles, Wrench } from "lucide-react";
 import { SettingsContextGeneral } from "./settings-context-general";
 import { SettingsContextDownloads } from "./settings-context-downloads";
 import { SettingsContextDownloadSources } from "./settings-context-download-sources";
@@ -28,6 +28,7 @@ import { SettingsContextIntegrations } from "./settings-context-integrations";
 import { SettingsContextCompatibility } from "./settings-context-compatibility";
 import { SettingsContextBigPicture } from "./settings-context-big-picture";
 import { SettingsContextEmulation } from "./emulation/settings-context-emulation";
+import { SettingsContextHydrant } from "./settings-context-hydrant";
 
 export default function Settings() {
   const { t } = useTranslation("settings");
@@ -81,6 +82,11 @@ export default function Settings() {
         id: "compatibility" as const,
         label: t("compatibility"),
         icon: <Wrench size={16} />,
+      },
+      {
+        id: "hydrant" as const,
+        label: t("hydrant"),
+        icon: <Sparkles size={16} />,
       },
       ...(userDetails
         ? [
@@ -146,6 +152,10 @@ export default function Settings() {
 
             if (selectedCategoryId === "compatibility") {
               return <SettingsContextCompatibility />;
+            }
+
+            if (selectedCategoryId === "hydrant") {
+              return <SettingsContextHydrant />;
             }
 
             if (selectedCategoryId === "big_picture") {

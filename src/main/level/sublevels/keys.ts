@@ -16,6 +16,8 @@ export const levelKeys = {
   downloads: "downloads",
   downloadLayoutState: "downloadLayoutState",
   userPreferences: "userPreferences",
+  hydrant: "hydrant", // Fork-only namespace; upstream Hydra never reads it
+  hydrantPreferences: "preferences",
   language: "language",
   screenState: "screenState",
   rpcPassword: "rpcPassword",

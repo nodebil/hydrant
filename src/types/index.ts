@@ -1158,6 +1158,7 @@ export * from "./epic-integration.types";
 export * from "./epic-managed.types";
 export * from "./download.types";
 export * from "./source.types";
+export * from "./hydrant.types";
 export * from "./ludusavi.types";
 export * from "./how-long-to-beat.types";
 export * from "./level.types";

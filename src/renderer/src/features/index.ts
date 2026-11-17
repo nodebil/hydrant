@@ -1,5 +1,6 @@
 export * from "./library-slice";
 export * from "./use-preferences-slice";
+export * from "./hydrant-preferences-slice";
 export * from "./download-slice";
 export * from "./window-slice";
 export * from "./toast-slice";
